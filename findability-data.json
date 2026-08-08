@@ -1,0 +1,415 @@
+{
+  "generated_at": "2026-08-08T02:34:31Z",
+  "embed_model": "gemini-embedding-2",
+  "edge_threshold": 0.7,
+  "nodes": [
+    {
+      "id": "hxvp",
+      "title": "HXVP Studio Portal",
+      "type": "project",
+      "tags": [
+        "Web Platform",
+        "Role-based UX",
+        "React"
+      ],
+      "summary": "A role-based operations platform for a creative production studio — production, client, talent, and crew working in one system.",
+      "subtitle": "Product Design + Engineering",
+      "year": "2026",
+      "url": "https://hxvp-studio-frontend.onrender.com/"
+    },
+    {
+      "id": "haptic-atlas",
+      "title": "Haptic Atlas",
+      "type": "project",
+      "tags": [
+        "Wearable",
+        "Navigation",
+        "Hardware"
+      ],
+      "summary": "A wearable haptic navigation system designed to provide spatial awareness without visual interfaces.",
+      "subtitle": "Lead Designer & Prototyper",
+      "year": "2026",
+      "url": "https://xinyu-jiao.github.io/haptic-atlas/present/"
+    },
+    {
+      "id": "social-rhythm",
+      "title": "Social Rhythm",
+      "type": "project",
+      "tags": [
+        "Interactive Installation",
+        "Movement",
+        "Mediapipe",
+        "Computer Vision"
+      ],
+      "summary": "Part I — Elephant’s Leg. A trilogy of three interactive installations exploring the relationship between human movement and space across…",
+      "subtitle": "Interaction + Computer Vision",
+      "year": "2025",
+      "url": ""
+    },
+    {
+      "id": "floralink",
+      "title": "FloraLink",
+      "type": "project",
+      "tags": [
+        "IoT",
+        "ESP32",
+        "TouchDesigner",
+        "Social Gaming",
+        "Plant Intelligence",
+        "Sociology"
+      ],
+      "summary": "A Social Game of Plant Interactions for Neighborly Engagement",
+      "subtitle": "Sociology + Game Mechanism",
+      "year": "2024",
+      "url": ""
+    },
+    {
+      "id": "heartwhisper",
+      "title": "HeartWhisper",
+      "type": "project",
+      "tags": [
+        "Product Design",
+        "Deep Learning",
+        "Hardware"
+      ],
+      "summary": "A Deep Learning–Based Device for East Asian Family Emotional Communication",
+      "subtitle": "Hardware + Deep Learning",
+      "year": "2024",
+      "url": ""
+    },
+    {
+      "id": "belt-for-the-blind",
+      "title": "Belt for the Blind",
+      "type": "project",
+      "tags": [
+        "Product Design",
+        "Deep Learning",
+        "Experimental Design",
+        "Prototype Development"
+      ],
+      "summary": "A Wearable Device Based on Tactile Perception and User Testing",
+      "subtitle": "Tactile Perception + Prototype Dev",
+      "year": "2024",
+      "url": ""
+    },
+    {
+      "id": "spatial-pixel-lab",
+      "title": "Spatial Pixel Lab, SVA",
+      "type": "work",
+      "tags": [],
+      "summary": "Designed and led a two-player hand-tracking prototype with dual-view alignment and gesture detection; ran 5+ usability tests across 3…",
+      "subtitle": "HCI Researcher (Project Lead)",
+      "year": "Sep 2025 — Jan 2026",
+      "url": ""
+    },
+    {
+      "id": "start-me-up",
+      "title": "Columbia Engineering",
+      "type": "work",
+      "tags": [],
+      "summary": "Led a lean customer-discovery process for a 4-member team through Columbia Engineering's NSF I-Corps Start Me Up Bootcamp; conducted 20+…",
+      "subtitle": "Entrepreneurial Lead — NSF I-Corps",
+      "year": "Oct 2025",
+      "url": ""
+    },
+    {
+      "id": "haptic-navigation-research",
+      "title": "Haptic Navigation Research — Columbia GSAPP & Tsinghua SoA",
+      "type": "work",
+      "tags": [],
+      "summary": "Built a wearable haptic prototype (v1) using Python and microcontrollers, mapping geographic data into vibrotactile cues; ran 5–8 hallway…",
+      "subtitle": "Project Lead",
+      "year": "Aug 2024 — Present",
+      "url": ""
+    },
+    {
+      "id": "thu-adri",
+      "title": "Architectural Design and Research Institute, THU",
+      "type": "work",
+      "tags": [],
+      "summary": "Scripted Rhino/Grasshopper solar and circulation analyses for academic buildings, delivering 3 master plans and 4 massing options.",
+      "subtitle": "Assistant Architect (Intern)",
+      "year": "Jul 2024 — Nov 2024",
+      "url": ""
+    },
+    {
+      "id": "ascii-motion-jellyfish",
+      "title": "ASCII Motion — Jellyfish",
+      "type": "lab",
+      "tags": [
+        "Generative"
+      ],
+      "summary": "A jellyfish GIF rewritten as living characters. Built as the seed work for ASCII Motion — a Next.js + Prisma gallery that turns images and…",
+      "subtitle": "Generative",
+      "year": "2026",
+      "url": "https://ascii-motion-production.up.railway.app/"
+    },
+    {
+      "id": "ikon-atlas",
+      "title": "Ikon Atlas — Resorts For Now",
+      "type": "lab",
+      "tags": [
+        "Interactive Map"
+      ],
+      "summary": "A minimalist catalog of Ikon Pass destinations — search, sort, and stage a trip across the season. Built with Leaflet and vanilla JS as…",
+      "subtitle": "Interactive Map",
+      "year": "2025",
+      "url": "https://jerry6063.github.io/PROJECT3_ikon_1215/"
+    },
+    {
+      "id": "ikon-pass-japan",
+      "title": "Ikon Pass Japan Explorer",
+      "type": "lab",
+      "tags": [
+        "Interactive"
+      ],
+      "summary": "A focused web tool for exploring Japan resorts on the Ikon Pass — typographic, dark-mode interface built with React, Three.js (R3F), and…",
+      "subtitle": "Interactive",
+      "year": "2025",
+      "url": "https://jerry6063.github.io/ikon-pass-explorer/"
+    }
+  ],
+  "edges": [
+    {
+      "s": "ikon-atlas",
+      "t": "ikon-pass-japan",
+      "w": 0.89
+    },
+    {
+      "s": "haptic-navigation-research",
+      "t": "spatial-pixel-lab",
+      "w": 0.8743
+    },
+    {
+      "s": "belt-for-the-blind",
+      "t": "haptic-atlas",
+      "w": 0.874
+    },
+    {
+      "s": "haptic-atlas",
+      "t": "haptic-navigation-research",
+      "w": 0.8497
+    },
+    {
+      "s": "spatial-pixel-lab",
+      "t": "start-me-up",
+      "w": 0.835
+    },
+    {
+      "s": "haptic-navigation-research",
+      "t": "start-me-up",
+      "w": 0.8293
+    },
+    {
+      "s": "belt-for-the-blind",
+      "t": "heartwhisper",
+      "w": 0.8167
+    },
+    {
+      "s": "haptic-navigation-research",
+      "t": "thu-adri",
+      "w": 0.8149
+    },
+    {
+      "s": "belt-for-the-blind",
+      "t": "haptic-navigation-research",
+      "w": 0.8085
+    },
+    {
+      "s": "floralink",
+      "t": "heartwhisper",
+      "w": 0.7981
+    },
+    {
+      "s": "haptic-atlas",
+      "t": "spatial-pixel-lab",
+      "w": 0.7967
+    },
+    {
+      "s": "spatial-pixel-lab",
+      "t": "thu-adri",
+      "w": 0.7903
+    },
+    {
+      "s": "belt-for-the-blind",
+      "t": "social-rhythm",
+      "w": 0.7856
+    },
+    {
+      "s": "social-rhythm",
+      "t": "spatial-pixel-lab",
+      "w": 0.782
+    },
+    {
+      "s": "floralink",
+      "t": "social-rhythm",
+      "w": 0.7813
+    },
+    {
+      "s": "haptic-atlas",
+      "t": "heartwhisper",
+      "w": 0.7773
+    },
+    {
+      "s": "start-me-up",
+      "t": "thu-adri",
+      "w": 0.7706
+    },
+    {
+      "s": "belt-for-the-blind",
+      "t": "floralink",
+      "w": 0.7591
+    },
+    {
+      "s": "haptic-atlas",
+      "t": "ikon-atlas",
+      "w": 0.7487
+    },
+    {
+      "s": "haptic-navigation-research",
+      "t": "ikon-atlas",
+      "w": 0.7309
+    },
+    {
+      "s": "ascii-motion-jellyfish",
+      "t": "social-rhythm",
+      "w": 0.7235
+    },
+    {
+      "s": "ikon-pass-japan",
+      "t": "social-rhythm",
+      "w": 0.7197
+    },
+    {
+      "s": "haptic-atlas",
+      "t": "ikon-pass-japan",
+      "w": 0.7191
+    },
+    {
+      "s": "ascii-motion-jellyfish",
+      "t": "ikon-pass-japan",
+      "w": 0.7148
+    },
+    {
+      "s": "ascii-motion-jellyfish",
+      "t": "ikon-atlas",
+      "w": 0.7121
+    },
+    {
+      "s": "hxvp",
+      "t": "ikon-pass-japan",
+      "w": 0.7086
+    }
+  ],
+  "related": {
+    "hxvp": [
+      "ikon-pass-japan",
+      "haptic-atlas",
+      "spatial-pixel-lab"
+    ],
+    "haptic-atlas": [
+      "belt-for-the-blind",
+      "haptic-navigation-research",
+      "spatial-pixel-lab"
+    ],
+    "social-rhythm": [
+      "belt-for-the-blind",
+      "spatial-pixel-lab",
+      "floralink"
+    ],
+    "floralink": [
+      "heartwhisper",
+      "social-rhythm",
+      "belt-for-the-blind"
+    ],
+    "heartwhisper": [
+      "belt-for-the-blind",
+      "floralink",
+      "haptic-atlas"
+    ],
+    "belt-for-the-blind": [
+      "haptic-atlas",
+      "heartwhisper",
+      "haptic-navigation-research"
+    ],
+    "spatial-pixel-lab": [
+      "haptic-navigation-research",
+      "start-me-up",
+      "haptic-atlas"
+    ],
+    "start-me-up": [
+      "spatial-pixel-lab",
+      "haptic-navigation-research",
+      "thu-adri"
+    ],
+    "haptic-navigation-research": [
+      "spatial-pixel-lab",
+      "haptic-atlas",
+      "start-me-up"
+    ],
+    "thu-adri": [
+      "haptic-navigation-research",
+      "spatial-pixel-lab",
+      "start-me-up"
+    ],
+    "ascii-motion-jellyfish": [
+      "social-rhythm",
+      "ikon-pass-japan",
+      "ikon-atlas"
+    ],
+    "ikon-atlas": [
+      "ikon-pass-japan",
+      "haptic-atlas",
+      "haptic-navigation-research"
+    ],
+    "ikon-pass-japan": [
+      "ikon-atlas",
+      "social-rhythm",
+      "haptic-atlas"
+    ]
+  },
+  "report": {
+    "nodes": 13,
+    "edges": 26,
+    "max_possible_edges": 78,
+    "isolated": [],
+    "components": [
+      [
+        "ascii-motion-jellyfish",
+        "belt-for-the-blind",
+        "floralink",
+        "haptic-atlas",
+        "haptic-navigation-research",
+        "heartwhisper",
+        "hxvp",
+        "ikon-atlas",
+        "ikon-pass-japan",
+        "social-rhythm",
+        "spatial-pixel-lab",
+        "start-me-up",
+        "thu-adri"
+      ]
+    ],
+    "degree": {
+      "ascii-motion-jellyfish": 3,
+      "belt-for-the-blind": 5,
+      "floralink": 3,
+      "haptic-atlas": 6,
+      "haptic-navigation-research": 6,
+      "heartwhisper": 3,
+      "hxvp": 1,
+      "ikon-atlas": 4,
+      "ikon-pass-japan": 5,
+      "social-rhythm": 5,
+      "spatial-pixel-lab": 5,
+      "start-me-up": 3,
+      "thu-adri": 3
+    },
+    "similarity_percentiles": {
+      "max": 0.89,
+      "p75": 0.7679,
+      "median": 0.7037,
+      "min": 0.6248
+    }
+  }
+}
