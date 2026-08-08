@@ -91,6 +91,17 @@ chromadb 1.5.9。
 双重排除,只提交 `.env.example`(空值)。提交前对全部被跟踪文件做过密钥
 模式扫描(`AIza…` / `sk-ant-…`),命中 0。
 
+### 交接状态
+
+- repo:github.com/Jerry6063/findability-api(**private**),分支 `main`,
+  首个 commit = Stage A 全量。
+- 本地 `/Users/jerryhao/personal-web` 是新 clone(main / 7406f4e),Stage A 只读它的
+  main.js,**一个字节都没改**,留给 Stage B 开 `feat/findability` 分支。
+- 容器 `fapi` 仍在跑:`http://127.0.0.1:8202`(镜像 findability-api,容器内 8200)。
+  重启用:`docker run -d --name fapi --env-file <你自己的 env 文件> -p 8202:8200
+  findability-api`,env 文件按 .env.example 的两个 key 自行拼(别写进仓库)。
+- Stage B 需要的静态文件:`findability-data.json`(13 nodes / 26 edges / related 表)。
+
 ### 还没做 / 待定
 
 - [ ] **未部署**:Railway 上没建服务,线上没有 URL。Stage B 前端里
