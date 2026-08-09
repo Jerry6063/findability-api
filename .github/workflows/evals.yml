@@ -1,0 +1,31 @@
+name: retrieval-evals
+
+# Retrieval quality is a build gate, not a manual ritual. The metrics are
+# recomputed from vectors committed in evals/golden-embeddings.json, so this job
+# needs no API key, makes no network call, and costs nothing — it is pure
+# arithmetic over 13 corpus vectors and the golden questions.
+#
+# It fails the build when hit-rate or MRR drops below the floors in
+# evals/ci_retrieval.py, and when the golden set and its cached embeddings drift
+# apart (a question edited without regenerating the cache, a citation pointing at
+# a node id the corpus no longer has).
+
+on:
+  push:
+    branches: [main]
+    paths: ['evals/**', 'corpus.json', 'findability-data.json', 'ingest.py', 'main.py', '.github/workflows/evals.yml']
+  pull_request:
+    paths: ['evals/**', 'corpus.json', 'findability-data.json', 'ingest.py', 'main.py']
+  workflow_dispatch:
+
+jobs:
+  retrieval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      # No `pip install` step on purpose: ci_retrieval.py is standard library only.
+      - name: Recompute retrieval metrics from cached vectors
+        run: python evals/ci_retrieval.py
