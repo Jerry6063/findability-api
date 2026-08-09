@@ -104,11 +104,26 @@ class ServiceEmbeddings:
     def _embed(self, text: str, task_type: str) -> list[float]:
         from google.genai import types as genai_types
 
-        resp = self._client.models.embed_content(
-            model=self._model,
-            contents=text,
-            config=genai_types.EmbedContentConfig(task_type=task_type),
-        )
+        # Ragas fans answer-relevancy embeddings out concurrently, which walks
+        # straight into the free tier's 100-requests-per-minute ceiling; a 429
+        # there silently drops the sample from the metric mean. Retry rather than
+        # quietly score fewer samples than the report claims.
+        delay = 8.0
+        for attempt in range(5):
+            try:
+                resp = self._client.models.embed_content(
+                    model=self._model,
+                    contents=text,
+                    config=genai_types.EmbedContentConfig(task_type=task_type),
+                )
+                break
+            except Exception as exc:
+                if "RESOURCE_EXHAUSTED" not in str(exc) and "429" not in str(exc):
+                    raise
+                if attempt == 4:
+                    raise
+                time.sleep(delay)
+                delay *= 1.6
         vec = list(resp.embeddings[0].values)
         norm = math.sqrt(sum(x * x for x in vec)) or 1.0
         return [x / norm for x in vec]

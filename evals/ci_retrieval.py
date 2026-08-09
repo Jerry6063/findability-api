@@ -1,8 +1,8 @@
 """CI gate: recompute retrieval metrics from cached vectors and fail on regression.
 
 Pure standard library — no numpy, no chromadb, no API key, no network, no cost.
-`golden-embeddings.json` already holds both the 13 corpus vectors and one vector
-per golden question, so the whole metric is a few thousand dot products.
+`golden-embeddings.json` already holds both the corpus vectors and one vector per
+golden question, so the whole metric is a few thousand dot products.
 
 It also checks the two ways this dataset rots in practice: a question added to
 `golden.jsonl` without regenerating the cache, and an `expected_citations` entry

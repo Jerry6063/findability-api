@@ -185,15 +185,56 @@ personal-web 的 main.js)。**13 → 15 块**:新增 `hxvp-marketing-group`(现�
 CI 比对指纹不符即 fail 并说明"节点 id 对得上,但文本动了,参考答案不可信"。
 **目前 CI 因此是红的,这是正确状态**——评测集确实过期了。
 
-### golden set 待刷新(CI 红的原因)
+### golden set 刷新(2026-08-09,CI 已转绿)
 
-| 需要处理 | 明细 |
+先用关键词探针粗查,只找出 8 条疑似过期;随后对 30 条逐条比对新语料的正式审计
+给出 **KEEP 16 / REPAIR 14 / DROP 0**,比探针多出 6 条(g17、g18、g25、g27、g28、g29)。
+**记下来是因为探针给了假安全感**:它只能发现"参考答案里引用的字面词组没了",
+发现不了"词组还在但语义被改写了"。以后判断评测集是否过期,不要用字符串匹配代替逐条比对。
+
+g05 按预判整条重写——它原本问的就是那组已从简历删掉的 15 人 / 1km / 85%。
+
+| 项 | 刷新前 | 刷新后 |
+| --- | --- | --- |
+| 条目数 | 30 | **34**(21 direct / 7 cross / 6 refusal;29 en / 5 zh) |
+| 节点覆盖 | 13/15(两个新节点无覆盖) | **15/15,无缺口** |
+| 新增覆盖 | —— | `hxvp-marketing-group`(g12/g13/g14,含一条中文)、`findability`(g21)、跨节点 g22 |
+
+刷新后重跑(k=5、15 chunk 新语料):
+
+| 指标 | 值 |
 | --- | --- |
-| 参考答案失效 | g04、g05(整条依赖已删除的 15/1km/85%)、g13、g14、g15、g16、g19、g22 |
-| 新节点无覆盖 | `hxvp-marketing-group`、`findability` |
-| 之后要重跑 | `run_retrieval.py`(刷新向量+指纹)→ `run_ragas.py` |
+| hit@3 / hit@5 | 0.9286 / **1.0000** |
+| recall@3 / recall@5 | 0.9286 / 0.9762 |
+| MRR | 0.9107 |
+| 分类 | direct hit@3 1.0000(21)· cross hit@3 0.7143(7)· zh 1.0000(4) |
 
-g05 大概率要整条重写或删除——它问的就是那组已被删除的数字。
+`ci_retrieval.py` 本地 exit 0(`corpus: 15 chunks · golden: 34 entries (28 scorable)`),
+指纹闸口通过。
+
+Ragas(28 条可评条目,拒答条不进四指标):
+
+| 指标 | 值 |
+| --- | --- |
+| faithfulness | 0.7044(仍是判官假阴性,见下) |
+| answer_relevancy | 0.7589 |
+| context_precision | 0.7798 |
+| context_recall | 0.9643 |
+
+**拒答混淆矩阵是满分**:该拒的 6/6 全拒,该答的 28 条 **0 例误拒**——
+ASK_TOP_K 4→5 修掉的那次误拒,在新语料上没有回归。
+
+**踩到两个坑,都已修在脚本里:**
+
+1. **Gemini 免费额度限流会静默吃掉样本。** Ragas 把 answer_relevancy 的嵌入并发打出去,
+   撞上 100 次/分钟上限后 429,那条样本直接被踢出均值——报告照样打印一个"完整"的数字。
+   第一次跑就少了 3 条(g26/g27/g28)。已在 `ServiceEmbeddings._embed` 加 429 退避重试
+   (5 次,8s 起 ×1.6),复跑 `--answers-from` 后 28/28 全部有分。
+   *少算样本比算错更危险,因为它不报错。*
+2. **faithfulness 多了第三种假阴性:跨语言。** g18 得 0.0,人工核对是完全有据的——
+   中文回答忠实转写了英文 `Highlights` 行的每一项。加上 Stage E 已记录的两种
+   (terse `Key: value` 行不被认作支持、只比对话题最近的那一块),这条指标在本语料上
+   依然**不可用于门禁**,结论不变。
 
 ### 还没做 / 待定
 
@@ -201,7 +242,7 @@ g05 大概率要整条重写或删除——它问的就是那组已被删除的�
       `FINDABILITY_API` 留空即为纯静态模式,不影响站点。是否部署由 Jerry 决定;
       部署时需在 Railway 配 `GEMINI_API_KEY`、`ANTHROPIC_API_KEY` 两个变量。
 - [ ] `chroma/`(1.7MB sqlite)是提交进仓库的——好处是镜像自带索引、部署零额外步骤;
-      坏处是每次重新摄取都会产生二进制 diff。语料只有 13 条、更新频率极低,先这样。
+      坏处是每次重新摄取都会产生二进制 diff。语料 15 条、更新频率极低,先这样。
 - [ ] Stage B(personal-web 前端)与 Stage C(对抗验收)不在本次范围。
 
 ---
@@ -225,6 +266,9 @@ langchain-community 0.4 删掉了这个兼容层。于是 `import ragas` 在 lan
 1.x 环境下直接 `ModuleNotFoundError`,升 ragas 到最新版也一样。只能整栈回退。
 
 ### 任务一:golden set(30 条)
+
+> 已被 2026-08-09 的刷新取代,现为 34 条 / 15 节点全覆盖。
+> 本节保留为当时的记录。
 
 `evals/golden.jsonl`,每条 `{id, question, reference_answer, expected_citations,
 category, lang, rationale}`。构成:

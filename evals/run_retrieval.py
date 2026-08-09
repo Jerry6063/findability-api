@@ -9,9 +9,10 @@ they are excluded from the metrics and reported separately — what a refusal
 question retrieves is still worth seeing, because a low top score is the signal
 /ask needs to decline.
 
-Also writes `golden-embeddings.json`: the query vectors plus the 13 document
-vectors, so CI can recompute these exact numbers with pure vector math — no API
-key, no cost, no network.
+Also writes `golden-embeddings.json`: the query vectors, every document vector,
+and a fingerprint of corpus.json, so CI can recompute these exact numbers with
+pure vector math — no API key, no cost, no network — and can tell when the
+corpus text has moved out from under the golden set.
 
 Usage (inside the eval container, repo root mounted at /app):
     python evals/run_retrieval.py                 # embed via API, write cache + report
@@ -82,7 +83,7 @@ def corpus_fingerprint() -> str:
 
 
 def load_docs() -> tuple[list[str], list[list[float]], dict[str, str]]:
-    """The 13 corpus vectors, straight out of the collection the service queries."""
+    """Every corpus vector, straight out of the collection the service queries."""
     import chromadb
 
     collection = chromadb.PersistentClient(path=CHROMA_DIR).get_collection(
