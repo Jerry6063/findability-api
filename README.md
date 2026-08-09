@@ -34,6 +34,38 @@ Rate limit: 10 requests/minute/IP (in-memory), `429` + `Retry-After` past that;
 `/health` is exempt. CORS: `haozhengrui.work`, `www.haozhengrui.work`, and any
 `localhost` / `127.0.0.1` port.
 
+## Evaluation
+
+`evals/` holds the measurement layer — a 30-entry golden set and the scripts that
+score retrieval and `/ask` against it. Full numbers and methodology in `PROGRESS.md`
+(Stage E); the short version:
+
+| what | number |
+| --- | --- |
+| retrieval hit-rate@3 / @5 | 0.9167 / 1.0000 |
+| retrieval MRR | 0.8958 |
+| cross-lingual (Chinese questions, English corpus) hit@3 | 1.0000 |
+| refusal accuracy (out-of-corpus correctly declined) | 6/6 |
+| false-refusal rate (answerable wrongly declined) | 1/24 |
+
+```
+python evals/run_retrieval.py     # metrics + regenerate the CI vector cache
+python evals/run_ragas.py         # Ragas over the real /ask pipeline (needs both keys)
+python evals/ci_retrieval.py      # what CI runs: stdlib only, no key, no network
+python evals/trace_ask.py         # send traced calls to a local Phoenix
+```
+
+`ci_retrieval.py` recomputes the retrieval metrics from vectors committed in
+`evals/golden-embeddings.json`, so the GitHub Actions job needs no API key and
+costs nothing. It also fails when the golden set and its cached embeddings drift
+apart.
+
+One finding worth flagging before you trust the Ragas numbers: **faithfulness is
+not a valid gate on this corpus.** A three-perspective manual audit put the true
+figure at 0.968 where the judge reported 0.52 — the metric penalises natural-language
+restatements of terse `Credits — …` metadata lines. A stronger judge made it *worse*,
+not better. See PROGRESS.md Stage E.
+
 ## Configuration
 
 Secrets come from the environment only — never from a file in this repo.

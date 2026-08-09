@@ -1,0 +1,6 @@
+# Optional: local Arize Phoenix tracing for the /ask pipeline.
+# Phoenix is open-source and runs entirely on localhost — no account, no vendor key.
+arize-phoenix>=5.0
+openinference-instrumentation-anthropic>=0.1
+opentelemetry-sdk>=1.25
+opentelemetry-exporter-otlp-proto-http>=1.25

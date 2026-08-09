@@ -1,0 +1,14 @@
+# Eval-only dependencies — not needed to run the service.
+# The judge LLM and the embeddings both reuse the two keys the service already
+# uses (ANTHROPIC_API_KEY, GEMINI_API_KEY): no new accounts, no new vendors.
+#
+# The whole LangChain stack is pinned to the 0.3 generation on purpose. Every
+# published ragas release imports `langchain_community.chat_models.vertexai` at
+# module load, and langchain-community 0.4 deleted that shim — so ragas cannot
+# even be imported alongside langchain-core 1.x. Measured working set below.
+ragas>=0.2.14,<0.3
+langchain-core>=0.3,<1.0
+langchain-community>=0.3,<0.4
+langchain-anthropic>=0.3,<0.4
+langchain-google-genai>=2.0,<3.0
+numpy>=1.26
