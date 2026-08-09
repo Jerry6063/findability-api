@@ -8,10 +8,10 @@ Samples: 24 answerable golden entries scored on the four metrics; all 30 answers
 
 | metric | mean |
 | --- | --- |
-| faithfulness | 0.7367 |
-| answer_relevancy | 0.7739 |
+| faithfulness | 0.7013 |
+| answer_relevancy | 0.7870 |
 | context_precision | 0.7292 |
-| context_recall | 0.9444 |
+| context_recall | 0.9722 |
 
 ## Refusal behaviour (all 30 entries)
 
@@ -20,70 +20,70 @@ Measured in both directions on purpose: a service that refuses everything would 
 | | refused | answered |
 | --- | --- | --- |
 | **should refuse** (6) | 6 | 0 |
-| **should answer** (24) | 1 | 23 |
+| **should answer** (24) | 0 | 24 |
 
 - Refusal accuracy (out-of-corpus correctly declined): **6/6 = 100.0%**
-- False-refusal rate (answerable wrongly declined): **1/24 = 4.2%**
-- Citations on refusals: 3/6 = 50.0% returned none (an unsourced refusal is the correct shape).
+- False-refusal rate (answerable wrongly declined): **0/24 = 0.0%**
+- Citations on refusals: 5/6 = 83.3% returned none (an unsourced refusal is the correct shape).
 
 ## Three weakest entries
 
-### g04 (direct, en) — faithfulness 0.250, answer_relevancy 0.816, context_precision 1.000, context_recall 1.000
+### g18 (direct, zh) — faithfulness 0.000, answer_relevancy 0.769, context_precision 1.000, context_recall 1.000
 
-**Q** How did he build the wearable that gives directions through vibration?
+**Q** 他在建筑设计院实习过吗？那段时间具体负责哪些工作？
 
-**Expected citations** `haptic-atlas` — **retrieved** `haptic-atlas, belt-for-the-blind, haptic-navigation-research, social-rhythm` — **cited** `haptic-atlas, haptic-navigation-research`
+**Expected citations** `thu-adri` — **retrieved** `thu-adri, haptic-navigation-research, spatial-pixel-lab, start-me-up, belt-for-the-blind` — **cited** `thu-adri`
 
-**Answer** Jerry built the Haptic Atlas wearable navigation system using Arduino microcontrollers and vibration motors, connected to a custom iOS app via Bluetooth LE. He developed a vocabulary of vibrotactile patterns that mapped to directional cues and proximity alerts. In his research role at Columbia GSAPP and Tsinghua, he constructed a prototype using Python and microcontrollers, creating a pipeline that converted geographic data from GIS and routing systems into vibrotactile feedback. He tested the system through hallway trials, measuring metrics like latency, jitter, and accuracy, and delivered supporting UI components in Figma alongside test scripts.
+**Answer** 是的，Jerry 在清华大学建筑设计研究院担任过助理建筑师实习生，时间是 2024 年 7 月到 11 月，地点在北京。他主要负责两方面工作：一是用 Rhino/Grasshopper 脚本为学术建筑进行日照和人流分析，交付了 3 套总体规划方案和 4 套体量选项；二是制作了 20 多张 CAD 审查图纸，解决了 15 项以上的规范和无障碍问题，使施工图协调冲突减少了约 25%。
 
-### g08 (direct, en) — faithfulness 0.250, answer_relevancy 0.648, context_precision 1.000, context_recall 1.000
-
-**Q** Who did he collaborate with on the plant-based neighborhood game, and which part did he handle himself?
-
-**Expected citations** `floralink` — **retrieved** `floralink, haptic-atlas, spatial-pixel-lab, haptic-navigation-research` — **cited** `floralink`
-
-**Answer** On FloraLink, Jerry collaborated with Xiaotong Qin under the mentorship of Ruby Wu. Jerry himself handled the sociological research, game mechanism design, drawings, and model making. The project ran from December 2023 through November 2024.
-
-### g13 (direct, en) — faithfulness 0.400, answer_relevancy 0.877, context_precision 1.000, context_recall 1.000
+### g13 (direct, en) — faithfulness 0.182, answer_relevancy 0.873, context_precision 1.000, context_recall 1.000
 
 **Q** What technical setup issues were logged on the two-player hand-tracking prototype at SVA, and what deliverables documented it?
 
-**Expected citations** `spatial-pixel-lab` — **retrieved** `spatial-pixel-lab, social-rhythm, haptic-atlas, haptic-navigation-research` — **cited** `spatial-pixel-lab`
+**Expected citations** `spatial-pixel-lab` — **retrieved** `spatial-pixel-lab, social-rhythm, haptic-atlas, haptic-navigation-research, floralink` — **cited** `spatial-pixel-lab`
 
-**Answer** At the Spatial Pixel Lab at SVA, Jerry logged three categories of technical issues on the two-player hand-tracking prototype: low-lumen conditions, occlusion problems, and interaction-latency challenges. To document the setup and findings, he produced a 90-second demo video and a one-page specification. He also drafted a mitigation roadmap addressing these issues and calibrated both the projector-to-wall and corner-wall configurations during development.
+**Answer** Jerry logged low-lumen, occlusion, and interaction-latency issues during the two-player hand-tracking prototype at SVA's Spatial Pixel Lab. He documented these technical challenges and drafted a mitigation roadmap to address them. The deliverables included a 90-second demo video and a one-page spec that captured the setup and findings. Additionally, he calibrated the projector–wall and corner-wall configurations to support the dual-view alignment and gesture detection system.
+
+### g08 (direct, en) — faithfulness 0.250, answer_relevancy 0.653, context_precision 1.000, context_recall 1.000
+
+**Q** Who did he collaborate with on the plant-based neighborhood game, and which part did he handle himself?
+
+**Expected citations** `floralink` — **retrieved** `floralink, haptic-atlas, spatial-pixel-lab, haptic-navigation-research, social-rhythm` — **cited** `floralink`
+
+**Answer** On FloraLink, the plant-based neighborhood game, Jerry collaborated with Xiaotong Qin and was mentored by Ruby Wu. Jerry handled the sociological research, designed the game mechanism, created drawings, and built models. The project ran from December 2023 through November 2024.
 
 
 ## Per entry
 
 | id | cat | lang | faith. | ans.rel. | ctx.prec. | ctx.rec. | refused | cited |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| g01 | direct | en | 0.571 | 0.867 | 1.000 | 1.000 | no | hxvp |
-| g02 | direct | en | 0.500 | 0.782 | 1.000 | 1.000 | no | hxvp |
-| g03 | direct | en | 1.000 | 0.832 | 1.000 | 1.000 | no | hxvp |
-| g04 | direct | en | 0.250 | 0.816 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
-| g05 | direct | en | 1.000 | 0.870 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
+| g01 | direct | en | 0.692 | 0.844 | 1.000 | 1.000 | no | hxvp |
+| g02 | direct | en | 1.000 | 0.794 | 1.000 | 1.000 | no | hxvp |
+| g03 | direct | en | 1.000 | 0.840 | 1.000 | 1.000 | no | hxvp |
+| g04 | direct | en | 0.375 | 0.841 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
+| g05 | direct | en | 0.583 | 0.887 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
 | g06 | direct | en | 1.000 | 0.724 | 1.000 | 1.000 | no | social-rhythm |
-| g07 | direct | en | 0.800 | 0.720 | 1.000 | 1.000 | no | social-rhythm |
-| g08 | direct | en | 0.250 | 0.648 | 1.000 | 1.000 | no | floralink |
-| g09 | direct | en | 1.000 | 0.637 | 1.000 | 1.000 | no | heartwhisper |
-| g10 | direct | en | 0.778 | 0.796 | 1.000 | 1.000 | no | belt-for-the-blind |
+| g07 | direct | en | 1.000 | 0.712 | 1.000 | 1.000 | no | social-rhythm |
+| g08 | direct | en | 0.250 | 0.653 | 1.000 | 1.000 | no | floralink |
+| g09 | direct | en | 1.000 | 0.686 | 1.000 | 1.000 | no | heartwhisper |
+| g10 | direct | en | 0.700 | 0.796 | 1.000 | 1.000 | no | belt-for-the-blind |
 | g11 | direct | en | 1.000 | 0.885 | 1.000 | 1.000 | no | ascii-motion-jellyfish |
-| g12 | direct | en | 0.889 | 0.811 | 1.000 | 1.000 | no | ikon-atlas, ikon-pass-japan |
-| g13 | direct | en | 0.400 | 0.877 | 1.000 | 1.000 | no | spatial-pixel-lab |
-| g14 | direct | en | 0.800 | 0.788 | 0.500 | 1.000 | no | haptic-navigation-research |
-| g15 | direct | en | 0.615 | 0.802 | 0.500 | 1.000 | no | haptic-navigation-research |
-| g16 | direct | en | 0.857 | 0.739 | 1.000 | 1.000 | no | start-me-up |
-| g17 | direct | zh | 0.692 | 0.633 | 1.000 | 1.000 | no | hxvp |
-| g18 | direct | zh | 0.800 | 0.755 | 1.000 | 1.000 | no | thu-adri |
-| g19 | cross | en | 0.444 | 0.686 | 0.500 | 1.000 | no | haptic-atlas, haptic-navigation-research |
-| g20 | cross | en | 0.714 | 0.660 | 0.000 | 0.333 | no | belt-for-the-blind |
-| g21 | cross | en | 0.857 | 0.905 | 0.000 | 0.333 | yes | belt-for-the-blind |
-| g22 | cross | en | 0.462 | 0.824 | 0.000 | 1.000 | no | spatial-pixel-lab, social-rhythm |
+| g12 | direct | en | 0.750 | 0.752 | 1.000 | 1.000 | no | ikon-atlas, ikon-pass-japan |
+| g13 | direct | en | 0.182 | 0.873 | 1.000 | 1.000 | no | spatial-pixel-lab |
+| g14 | direct | en | 0.889 | 0.901 | 0.500 | 1.000 | no | haptic-navigation-research |
+| g15 | direct | en | 0.500 | 0.785 | 0.500 | 1.000 | no | haptic-navigation-research |
+| g16 | direct | en | 0.857 | 0.769 | 1.000 | 1.000 | no | start-me-up |
+| g17 | direct | zh | 0.667 | 0.633 | 1.000 | 1.000 | no | hxvp |
+| g18 | direct | zh | 0.000 | 0.769 | 1.000 | 1.000 | no | thu-adri |
+| g19 | cross | en | 0.750 | 0.676 | 0.500 | 1.000 | no | haptic-atlas, haptic-navigation-research |
+| g20 | cross | en | 0.562 | 0.818 | 0.000 | 0.667 | no | belt-for-the-blind, heartwhisper |
+| g21 | cross | en | 1.000 | 0.913 | 0.000 | 0.667 | no | social-rhythm, belt-for-the-blind |
+| g22 | cross | en | 0.308 | 0.820 | 0.000 | 1.000 | no | spatial-pixel-lab, social-rhythm |
 | g23 | cross | en | 1.000 | 0.846 | 0.000 | 1.000 | no | floralink, heartwhisper |
-| g24 | cross | zh | 1.000 | 0.671 | 0.000 | 1.000 | no | ikon-pass-japan, ikon-atlas |
+| g24 | cross | zh | 0.765 | 0.674 | 0.000 | 1.000 | no | ikon-pass-japan, ikon-atlas |
 | g25 | refusal | en | — | — | — | — | yes | — |
 | g26 | refusal | en | — | — | — | — | yes | — |
 | g27 | refusal | en | — | — | — | — | yes | — |
-| g28 | refusal | en | — | — | — | — | yes | spatial-pixel-lab, haptic-navigation-research, haptic-atlas, ikon-pass-japan |
-| g29 | refusal | en | — | — | — | — | yes | belt-for-the-blind, spatial-pixel-lab, thu-adri, heartwhisper |
+| g28 | refusal | en | — | — | — | — | yes | — |
+| g29 | refusal | en | — | — | — | — | yes | — |
 | g30 | refusal | zh | — | — | — | — | yes | heartwhisper |

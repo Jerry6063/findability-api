@@ -37,7 +37,13 @@ DATA_PATH = os.environ.get("FINDABILITY_DATA", "./findability-data.json")
 COLLECTION = "findability"
 
 SEARCH_TOP_K = 5
-ASK_TOP_K = 4
+# 5, not 4: measured on the golden set. hit@4 is already 1.0000, so a fifth chunk
+# never decides *whether* an answer is possible — it decides whether an enumerating
+# question ("which of his projects use X") can be answered completely. At k=4 the
+# ML/CV question saw one of its three supporting chunks and honestly declined; at
+# k=5 it sees two and answers. The fifth chunk is a wanted citation only 2/24 of
+# the time and costs ~300 input tokens, which is the trade being made here.
+ASK_TOP_K = 5
 ASK_MAX_TOKENS = int(os.environ.get("FINDABILITY_MAX_TOKENS", "600"))
 RATE_LIMIT = int(os.environ.get("FINDABILITY_RATE_LIMIT", "10"))  # requests
 RATE_WINDOW = 60.0  # seconds
