@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-08T02:34:31Z",
+  "generated_at": "2026-08-09T22:18:29Z",
   "embed_model": "gemini-embedding-2",
   "edge_threshold": 0.7,
   "nodes": [
@@ -26,9 +26,9 @@
         "Navigation",
         "Hardware"
       ],
-      "summary": "A wearable haptic navigation system designed to provide spatial awareness without visual interfaces.",
-      "subtitle": "Lead Designer & Prototyper",
-      "year": "2026",
+      "summary": "The design side of the Haptic Navigation Research program — navigation carried by vibration instead of a screen.",
+      "subtitle": "Project Lead",
+      "year": "2024 — Present",
       "url": "https://xinyu-jiao.github.io/haptic-atlas/present/"
     },
     {
@@ -93,13 +93,23 @@
       "url": ""
     },
     {
+      "id": "hxvp-marketing-group",
+      "title": "HXVP Marketing Group",
+      "type": "work",
+      "tags": [],
+      "summary": "Embedded on-site at a film production studio, owned the 0→1 rebuild of its operations platform (React 19): authored the PRD and shipped…",
+      "subtitle": "AI Solutions Engineer (Forward Deployed)",
+      "year": "Jun 2026 — Present",
+      "url": ""
+    },
+    {
       "id": "spatial-pixel-lab",
       "title": "Spatial Pixel Lab, SVA",
       "type": "work",
       "tags": [],
-      "summary": "Designed and led a two-player hand-tracking prototype with dual-view alignment and gesture detection; ran 5+ usability tests across 3…",
+      "summary": "Created a projection installation where two players interact through hand tracking and gesture detection, with dual views aligned across…",
       "subtitle": "HCI Researcher (Project Lead)",
-      "year": "Sep 2025 — Jan 2026",
+      "year": "Sep 2025 — Dec 2025",
       "url": ""
     },
     {
@@ -107,17 +117,17 @@
       "title": "Columbia Engineering",
       "type": "work",
       "tags": [],
-      "summary": "Led a lean customer-discovery process for a 4-member team through Columbia Engineering's NSF I-Corps Start Me Up Bootcamp; conducted 20+…",
-      "subtitle": "Entrepreneurial Lead — NSF I-Corps",
+      "summary": "Led customer discovery for a 4-member team and synthesized 20+ field interviews into jobs-to-be-done maps, a Lean Canvas, and a North Star…",
+      "subtitle": "Entrepreneurial Lead (NSF I-Corps)",
       "year": "Oct 2025",
       "url": ""
     },
     {
       "id": "haptic-navigation-research",
-      "title": "Haptic Navigation Research — Columbia GSAPP & Tsinghua SoA",
+      "title": "Haptic Navigation Research, Columbia GSAPP & Tsinghua SoA",
       "type": "work",
       "tags": [],
-      "summary": "Built a wearable haptic prototype (v1) using Python and microcontrollers, mapping geographic data into vibrotactile cues; ran 5–8 hallway…",
+      "summary": "Led the cross-university research program on haptic navigation for blind and low-vision users; the v1 wearable has since grown into a…",
       "subtitle": "Project Lead",
       "year": "Aug 2024 — Present",
       "url": ""
@@ -127,10 +137,22 @@
       "title": "Architectural Design and Research Institute, THU",
       "type": "work",
       "tags": [],
-      "summary": "Scripted Rhino/Grasshopper solar and circulation analyses for academic buildings, delivering 3 master plans and 4 massing options.",
+      "summary": "Scripted solar and circulation analyses (Rhino/Grasshopper) that drove massing decisions across 3 master plans and 4 massing options for…",
       "subtitle": "Assistant Architect (Intern)",
       "year": "Jul 2024 — Nov 2024",
       "url": ""
+    },
+    {
+      "id": "findability",
+      "title": "Findability",
+      "type": "lab",
+      "tags": [
+        "Live System"
+      ],
+      "summary": "Semantic search over everything on this site — a similarity graph, dual-path retrieval, and grounded Q&A built from the same corpus the…",
+      "subtitle": "Live System",
+      "year": "2024–2026",
+      "url": "#findability"
     },
     {
       "id": "ascii-motion-jellyfish",
@@ -171,34 +193,39 @@
   ],
   "edges": [
     {
+      "s": "haptic-atlas",
+      "t": "haptic-navigation-research",
+      "w": 0.8982
+    },
+    {
       "s": "ikon-atlas",
       "t": "ikon-pass-japan",
       "w": 0.89
     },
     {
+      "s": "belt-for-the-blind",
+      "t": "haptic-atlas",
+      "w": 0.8835
+    },
+    {
       "s": "haptic-navigation-research",
       "t": "spatial-pixel-lab",
-      "w": 0.8743
+      "w": 0.8561
     },
     {
       "s": "belt-for-the-blind",
-      "t": "haptic-atlas",
-      "w": 0.874
-    },
-    {
-      "s": "haptic-atlas",
       "t": "haptic-navigation-research",
-      "w": 0.8497
+      "w": 0.8274
     },
     {
-      "s": "spatial-pixel-lab",
-      "t": "start-me-up",
-      "w": 0.835
+      "s": "social-rhythm",
+      "t": "spatial-pixel-lab",
+      "w": 0.8234
     },
     {
       "s": "haptic-navigation-research",
       "t": "start-me-up",
-      "w": 0.8293
+      "w": 0.817
     },
     {
       "s": "belt-for-the-blind",
@@ -208,12 +235,7 @@
     {
       "s": "haptic-navigation-research",
       "t": "thu-adri",
-      "w": 0.8149
-    },
-    {
-      "s": "belt-for-the-blind",
-      "t": "haptic-navigation-research",
-      "w": 0.8085
+      "w": 0.8164
     },
     {
       "s": "floralink",
@@ -221,14 +243,19 @@
       "w": 0.7981
     },
     {
-      "s": "haptic-atlas",
-      "t": "spatial-pixel-lab",
-      "w": 0.7967
+      "s": "spatial-pixel-lab",
+      "t": "start-me-up",
+      "w": 0.7981
     },
     {
-      "s": "spatial-pixel-lab",
-      "t": "thu-adri",
-      "w": 0.7903
+      "s": "hxvp",
+      "t": "hxvp-marketing-group",
+      "w": 0.7936
+    },
+    {
+      "s": "haptic-navigation-research",
+      "t": "hxvp-marketing-group",
+      "w": 0.7858
     },
     {
       "s": "belt-for-the-blind",
@@ -236,9 +263,9 @@
       "w": 0.7856
     },
     {
-      "s": "social-rhythm",
-      "t": "spatial-pixel-lab",
-      "w": 0.782
+      "s": "hxvp-marketing-group",
+      "t": "start-me-up",
+      "w": 0.7846
     },
     {
       "s": "floralink",
@@ -247,13 +274,23 @@
     },
     {
       "s": "haptic-atlas",
-      "t": "heartwhisper",
-      "w": 0.7773
+      "t": "social-rhythm",
+      "w": 0.7806
     },
     {
       "s": "start-me-up",
       "t": "thu-adri",
-      "w": 0.7706
+      "w": 0.7799
+    },
+    {
+      "s": "spatial-pixel-lab",
+      "t": "thu-adri",
+      "w": 0.7763
+    },
+    {
+      "s": "haptic-atlas",
+      "t": "heartwhisper",
+      "w": 0.7705
     },
     {
       "s": "belt-for-the-blind",
@@ -261,14 +298,19 @@
       "w": 0.7591
     },
     {
-      "s": "haptic-atlas",
+      "s": "findability",
       "t": "ikon-atlas",
-      "w": 0.7487
+      "w": 0.7544
     },
     {
-      "s": "haptic-navigation-research",
+      "s": "findability",
+      "t": "ikon-pass-japan",
+      "w": 0.7396
+    },
+    {
+      "s": "haptic-atlas",
       "t": "ikon-atlas",
-      "w": 0.7309
+      "w": 0.7333
     },
     {
       "s": "ascii-motion-jellyfish",
@@ -279,11 +321,6 @@
       "s": "ikon-pass-japan",
       "t": "social-rhythm",
       "w": 0.7197
-    },
-    {
-      "s": "haptic-atlas",
-      "t": "ikon-pass-japan",
-      "w": 0.7191
     },
     {
       "s": "ascii-motion-jellyfish",
@@ -299,22 +336,27 @@
       "s": "hxvp",
       "t": "ikon-pass-japan",
       "w": 0.7086
+    },
+    {
+      "s": "haptic-atlas",
+      "t": "hxvp",
+      "w": 0.7044
     }
   ],
   "related": {
     "hxvp": [
+      "hxvp-marketing-group",
       "ikon-pass-japan",
-      "haptic-atlas",
-      "spatial-pixel-lab"
+      "haptic-atlas"
     ],
     "haptic-atlas": [
-      "belt-for-the-blind",
       "haptic-navigation-research",
-      "spatial-pixel-lab"
+      "belt-for-the-blind",
+      "social-rhythm"
     ],
     "social-rhythm": [
-      "belt-for-the-blind",
       "spatial-pixel-lab",
+      "belt-for-the-blind",
       "floralink"
     ],
     "floralink": [
@@ -329,28 +371,38 @@
     ],
     "belt-for-the-blind": [
       "haptic-atlas",
-      "heartwhisper",
-      "haptic-navigation-research"
+      "haptic-navigation-research",
+      "heartwhisper"
+    ],
+    "hxvp-marketing-group": [
+      "hxvp",
+      "haptic-navigation-research",
+      "start-me-up"
     ],
     "spatial-pixel-lab": [
       "haptic-navigation-research",
-      "start-me-up",
-      "haptic-atlas"
+      "social-rhythm",
+      "start-me-up"
     ],
     "start-me-up": [
-      "spatial-pixel-lab",
       "haptic-navigation-research",
-      "thu-adri"
+      "spatial-pixel-lab",
+      "hxvp-marketing-group"
     ],
     "haptic-navigation-research": [
-      "spatial-pixel-lab",
       "haptic-atlas",
-      "start-me-up"
+      "spatial-pixel-lab",
+      "belt-for-the-blind"
     ],
     "thu-adri": [
       "haptic-navigation-research",
-      "spatial-pixel-lab",
-      "start-me-up"
+      "start-me-up",
+      "spatial-pixel-lab"
+    ],
+    "findability": [
+      "ikon-atlas",
+      "ikon-pass-japan",
+      "haptic-navigation-research"
     ],
     "ascii-motion-jellyfish": [
       "social-rhythm",
@@ -359,29 +411,31 @@
     ],
     "ikon-atlas": [
       "ikon-pass-japan",
-      "haptic-atlas",
-      "haptic-navigation-research"
+      "findability",
+      "haptic-atlas"
     ],
     "ikon-pass-japan": [
       "ikon-atlas",
-      "social-rhythm",
-      "haptic-atlas"
+      "findability",
+      "social-rhythm"
     ]
   },
   "report": {
-    "nodes": 13,
-    "edges": 26,
-    "max_possible_edges": 78,
+    "nodes": 15,
+    "edges": 30,
+    "max_possible_edges": 105,
     "isolated": [],
     "components": [
       [
         "ascii-motion-jellyfish",
         "belt-for-the-blind",
+        "findability",
         "floralink",
         "haptic-atlas",
         "haptic-navigation-research",
         "heartwhisper",
         "hxvp",
+        "hxvp-marketing-group",
         "ikon-atlas",
         "ikon-pass-japan",
         "social-rhythm",
@@ -393,23 +447,25 @@
     "degree": {
       "ascii-motion-jellyfish": 3,
       "belt-for-the-blind": 5,
+      "findability": 2,
       "floralink": 3,
       "haptic-atlas": 6,
       "haptic-navigation-research": 6,
       "heartwhisper": 3,
-      "hxvp": 1,
+      "hxvp": 3,
+      "hxvp-marketing-group": 3,
       "ikon-atlas": 4,
       "ikon-pass-japan": 5,
-      "social-rhythm": 5,
-      "spatial-pixel-lab": 5,
-      "start-me-up": 3,
+      "social-rhythm": 6,
+      "spatial-pixel-lab": 4,
+      "start-me-up": 4,
       "thu-adri": 3
     },
     "similarity_percentiles": {
-      "max": 0.89,
-      "p75": 0.7679,
-      "median": 0.7037,
-      "min": 0.6248
+      "max": 0.8982,
+      "p75": 0.7544,
+      "median": 0.6956,
+      "min": 0.6234
     }
   }
 }

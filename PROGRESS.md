@@ -167,6 +167,34 @@ belt-for-the-blind(第 4 名),模型是**拿着 1/3 的证据判断不足以回�
 8% 付的保险费。检索指标与 CI **完全不受影响**(hit@3/@5、MRR 走的是
 `SEARCH_TOP_K`,与 ASK_TOP_K 无关),CI 仍然绿。
 
+### 语料重建 + 一个被漏掉的漂移场景(2026-08-09)
+
+站点 Work 区按简历重写、并补上 HXVP 现职后,语料必须重跑(`ingest.py` 读的是
+personal-web 的 main.js)。**13 → 15 块**:新增 `hxvp-marketing-group`(现职)
+和 `findability`(合并带来的 Lab 条目);30 条边,零孤立点。
+
+重跑同时暴露了 Stage E 的 CI 门禁**漏掉的一类漂移**:
+
+- 已覆盖:golden 引用了不存在的节点 id、问题改了但向量没重算 → 会 fail
+- **漏掉的**:节点 id 全都还在,但**它们背后的文本被改写了**。这次正是如此——
+  Haptic Atlas 删掉了 `15 participants / 1km / 85% / Bluetooth LE`,Work 区
+  全部重新转写,于是 **8 条 golden 的参考答案引用了语料里已不存在的表述**
+  (g04/g05/g13/g14/g15/g16/g19/g22),而 CI **依然是绿的**。
+
+修法:`golden-embeddings.json` 里记录 `corpus.json` 的 SHA-256 指纹,
+CI 比对指纹不符即 fail 并说明"节点 id 对得上,但文本动了,参考答案不可信"。
+**目前 CI 因此是红的,这是正确状态**——评测集确实过期了。
+
+### golden set 待刷新(CI 红的原因)
+
+| 需要处理 | 明细 |
+| --- | --- |
+| 参考答案失效 | g04、g05(整条依赖已删除的 15/1km/85%)、g13、g14、g15、g16、g19、g22 |
+| 新节点无覆盖 | `hxvp-marketing-group`、`findability` |
+| 之后要重跑 | `run_retrieval.py`(刷新向量+指纹)→ `run_ragas.py` |
+
+g05 大概率要整条重写或删除——它问的就是那组已被删除的数字。
+
 ### 还没做 / 待定
 
 - [ ] **未部署**:Railway 上没建服务,线上没有 URL。Stage B 前端里

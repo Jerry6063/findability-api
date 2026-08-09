@@ -15,13 +15,16 @@ pointing at a node id the corpus no longer has.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
+ROOT = HERE.parent
 CACHE = HERE / "golden-embeddings.json"
 GOLDEN = HERE / "golden.jsonl"
+CORPUS = ROOT / "corpus.json"
 
 # Baseline measured 2026-08-09: hit@3 0.9167, hit@5 1.0000, MRR 0.8958.
 # Floors sit a little under that so honest corpus growth does not trip the build,
@@ -41,6 +44,39 @@ def load() -> tuple[dict, list[dict]]:
     cache = json.loads(CACHE.read_text(encoding="utf-8"))
     golden = [json.loads(l) for l in GOLDEN.read_text(encoding="utf-8").splitlines() if l.strip()]
     return cache, golden
+
+
+def corpus_fingerprint() -> str:
+    """Hash of the corpus text itself, not just its ids.
+
+    The id-level checks below catch a citation pointing at a node that no longer
+    exists. They do NOT catch the quieter failure: the ids all survive, but the
+    text behind them was rewritten, so every reference answer now quotes wording
+    the corpus does not contain. That happened for real when the site's Work
+    section was re-transcribed from the resume — ids unchanged, eight reference
+    answers silently stale, CI green. Hence this.
+    """
+    if not CORPUS.exists():
+        return ""
+    corpus = json.loads(CORPUS.read_text(encoding="utf-8"))
+    blob = json.dumps(corpus, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
+def check_corpus_sync(cache: dict) -> None:
+    recorded = cache.get("corpus_fingerprint")
+    current = corpus_fingerprint()
+    if not current:
+        return                      # no corpus.json in this checkout; nothing to compare
+    if not recorded:
+        fail("golden-embeddings.json predates the corpus fingerprint — re-run "
+             "`python evals/run_retrieval.py` to record it")
+    if recorded != current:
+        fail(f"corpus.json changed since the golden set was written "
+             f"({recorded} -> {current}). The node ids may still line up, but the "
+             "text behind them moved, so the reference answers can no longer be "
+             "trusted. Review evals/golden.jsonl against the new corpus, then "
+             "re-run `python evals/run_retrieval.py`.")
 
 
 def check_consistency(cache: dict, golden: list[dict]) -> None:
@@ -115,6 +151,7 @@ def main() -> None:
     args = parser.parse_args()
 
     cache, golden = load()
+    check_corpus_sync(cache)
     check_consistency(cache, golden)
     metrics = score(cache)
 

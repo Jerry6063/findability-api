@@ -69,6 +69,18 @@ def load_golden() -> list[dict]:
     return entries
 
 
+def corpus_fingerprint() -> str:
+    """Same hash CI checks: catches the corpus text moving under a stable id set."""
+    import hashlib
+
+    path = ROOT / "corpus.json"
+    if not path.exists():
+        return ""
+    blob = json.dumps(json.loads(path.read_text(encoding="utf-8")),
+                      sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
 def load_docs() -> tuple[list[str], list[list[float]], dict[str, str]]:
     """The 13 corpus vectors, straight out of the collection the service queries."""
     import chromadb
@@ -266,6 +278,7 @@ def main() -> None:
             "note": "Precomputed vectors so CI can recompute retrieval metrics with pure "
                     "vector math — no API key, no cost. Regenerate whenever golden.jsonl "
                     "or the corpus changes.",
+            "corpus_fingerprint": corpus_fingerprint(),
             "embed_model": EMBED_MODEL,
             "dim": len(doc_vecs[0]),
             "normalised": True,
