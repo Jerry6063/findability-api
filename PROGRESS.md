@@ -102,6 +102,25 @@ chromadb 1.5.9。
   findability-api`,env 文件按 .env.example 的两个 key 自行拼(别写进仓库)。
 - Stage B 需要的静态文件:`findability-data.json`(13 nodes / 26 edges / related 表)。
 
+### CI 上线记录(2026-08-09)
+
+workflow 由 Jerry 在 GitHub 网页端提交(`478309a`)——命令行推不上去,因为 `gh`
+当前的 OAuth token 没有 `workflow` scope,而设备码授权流需要终端进程一直存活
+才能把新 token 写回 keyring,串在 `&&` 里跑会中断。网页端编辑不受该 scope 限制。
+
+首次运行 **20 秒通过**,GitHub runner 上算出的数字与本地**逐位一致**:
+
+```
+corpus: 13 chunks · golden: 30 entries (24 scorable) · model: gemini-embedding-2
+  ok  hit@3  0.9167  (floor 0.85)
+  ok  hit@5  1.0000  (floor 0.95)
+  ok  mrr    0.8958  (floor 0.85)
+retrieval metrics within thresholds
+```
+
+这条闭环本身就是"缓存向量路径可信"的证据:同一批向量,本地走真实 Chroma、
+CI 走纯标准库,结果相同。
+
 ### 还没做 / 待定
 
 - [ ] **未部署**:Railway 上没建服务,线上没有 URL。Stage B 前端里
