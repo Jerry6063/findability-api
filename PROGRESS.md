@@ -474,3 +474,52 @@ evals/requirements-tracing.txt  Phoenix 依赖
 - [ ] Ragas faithfulness 不进 CI(理由见上)。如果以后语料从"标签行"改写成
       散文式描述,值得重测一次这个结论。
 - [ ] Phoenix 是本地一次性演示,没有常驻;容器 `fphoenix` 用完即可 `docker rm -f`。
+
+---
+
+## 2026-08-10 部署上线(Fly.io)
+
+`https://findability-api.fly.dev` — 单台 `shared-cpu-1x` / 512MB,region `ewr`,
+`auto_stop_machines = "suspend"` + `min_machines_running = 0`。
+`fly deploy --ha=false` 是**必须**的:日预算计数器是机器本地文件,两台机器 = 两份独立预算。
+两把 key 走 `fly secrets import`(从 600 权限的文件管道进,不进 shell history、不打印);
+其余配置在 `fly.toml` 的 `[env]` 里,归版本控制。
+
+Anthropic 侧做了 workspace 隔离:key 归属 `findability-api` workspace,该 workspace
+月度上限 $5(组织上限 $20、余额 $9.55、auto-reload 关闭)。这样公网端点被刷爆时
+只烧掉这 $5,不会连带停掉 leaselens 和 Claude Code。
+
+### 上线后实测(都是打线上,不是容器)
+
+| 项 | 结果 |
+| --- | --- |
+| 冷启动(suspend → 唤醒) | **1.31s** |
+| 热机 `/health` | 0.07s |
+| `/search` | 0.50s |
+| `/ask` 端到端 | 7.04s |
+| 首次全新创建(拉镜像 + 导入 chromadb) | ~8s |
+| 计数器扛过 suspend/resume | ✅ `asks_today` 保持 1 |
+
+**三件之前只能靠推理、现在有实证的事:**
+
+1. **日上限的 429 经 Fly 代理后仍带 CORS 头**
+   (`access-control-allow-origin` + `vary: Origin`)。这条不成立的话,浏览器会把
+   status 和 body 一起藏起来,前端只能退回"稍后再试"那句不诚实的提示。
+2. **`Fly-Client-IP` 无法伪造。** 限流临时降到 3/min,打满后用三个不同伪造值
+   (203.0.113.7 / 198.51.100.42 / 192.0.2.99)全部拿到 429,`/health` 的
+   `tracked_clients` 始终是 1。要么 Fly 覆盖了它,要么 `client_ip()` 取最右段把
+   伪造值中和了——**两种情况结论相同,而"取最右"正是让第二种情况也安全的原因**。
+   于是正式启用该 header,限流恢复成按访客计,值设 30(不是代码默认的 10:
+   /search 有 700ms 防抖、/related 每开一次弹窗打一次、进场最多三次 /health 探测,
+   一个正常浏览的访客一分钟花掉 15-20 个请求很平常)。
+   **换离 Fly 就要重测这一条。**
+3. **前端冷启动路径实测通过。** 真浏览器打线上、机器事先手动挂起:
+   `/health` 在 +1255ms 发出,Ask 框 2368ms 出现,**只打了一次** `/health`——
+   前端三档预算 `[1500, 4000, 6000]` 的第一档就接住了。退化成完全停机(~8s)时
+   第三档仍覆盖得住。
+
+### 仍未闭合
+
+- `fly deploy` 会换 rootfs,重置当天计数(人为触发、罕见,接受)。
+- 计数器是单机文件。**别把这个 app 扩到多台机器**,否则预算按机器数翻倍。
+- 残留上限:150 × ~$0.0066 ≈ **$1/天**。真正的兜底是 workspace 的 $5 月度上限。
