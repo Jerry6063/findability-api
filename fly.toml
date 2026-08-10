@@ -1,0 +1,40 @@
+# findability-api on Fly.io — scale-to-zero, single machine, no secrets here.
+#
+# Secrets (GEMINI_API_KEY, ANTHROPIC_API_KEY) are set with `fly secrets set` and
+# live in Fly's encrypted store. Nothing in this file is confidential.
+
+app = "findability-api"
+primary_region = "ewr"          # Newark: closest region to the site's author/audience
+
+[build]
+  dockerfile = "Dockerfile"
+
+[http_service]
+  # The Dockerfile's CMD binds ${PORT:-8200} and Fly does NOT inject PORT, so the
+  # container really listens on 8200. This must stay in sync with that CMD.
+  internal_port = 8200
+  force_https = true
+
+  # Scale to zero between visits. This is a portfolio widget: idle most of the day.
+  #
+  # auto_stop_machines is a STRING ("off" | "stop" | "suspend"), not a boolean —
+  # the boolean form is legacy. "suspend" snapshots RAM so a wake skips the
+  # Python + chromadb import cost, which dominates cold start here.
+  #   https://fly.io/docs/reference/configuration/#the-http_service-section
+  #   https://fly.io/docs/launch/autostop-autostart/
+  # Suspension is only eligible up to 2 GiB of RAM; this VM is 512 MB, so it
+  # qualifies. If it ever becomes ineligible Fly falls back to autostop, which is
+  # still correct — just a slower wake.
+  #   https://community.fly.io/t/autosuspend-is-here-machine-suspension-is-enabled-everywhere/20942
+  auto_stop_machines = "suspend"
+  auto_start_machines = true
+  min_machines_running = 0
+
+# Keep this app at ONE machine. The /ask daily budget counter is a file on the
+# machine's own filesystem, so N machines would mean N independent budgets and
+# an N-times-larger daily bill. The counter file survives suspend/stop cycles of
+# a given machine; a fresh `fly deploy` replaces the rootfs and resets it, which
+# is an accepted (and rare, human-initiated) reset.
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

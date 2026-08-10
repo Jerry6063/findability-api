@@ -20,6 +20,7 @@ import re
 import threading
 import time
 from collections import defaultdict, deque
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Request
@@ -47,6 +48,16 @@ ASK_TOP_K = 5
 ASK_MAX_TOKENS = int(os.environ.get("FINDABILITY_MAX_TOKENS", "600"))
 RATE_LIMIT = int(os.environ.get("FINDABILITY_RATE_LIMIT", "10"))  # requests
 RATE_WINDOW = 60.0  # seconds
+
+# Global spend brake on /ask. The per-IP limit above shapes bursts; it does not
+# bound money. At 10 req/min/IP and ~$0.0066 per answered /ask, one IP can spend
+# ~$95/day and ten can spend ~$950/day, which is the whole exposure of putting
+# this behind a public portfolio page. /search and /related are not capped: a
+# Gemini query embed is ~$0.0000015, four orders of magnitude cheaper, and they
+# are what the page actually leans on.
+DAILY_ASK_LIMIT = int(os.environ.get("FINDABILITY_DAILY_ASK_LIMIT", "150"))
+STATE_DIR = os.environ.get("FINDABILITY_STATE_DIR", os.path.dirname(os.path.abspath(__file__)))
+STATE_PATH = os.path.join(STATE_DIR, "ask-usage.json")
 
 ALLOWED_ORIGINS = [
     "https://haozhengrui.work",
@@ -105,6 +116,133 @@ app.add_middleware(
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+# --- global daily spend brake on /ask ---------------------------------------
+
+class _DailyBudget:
+    """Global, disk-persisted count of answered /ask calls for the current UTC day.
+
+    Persisted, not in-memory, because this runs on Fly with scale-to-zero: the
+    process is stopped and woken constantly, so an in-memory counter would reset
+    on every wake and the cap would enforce nothing. The file is the source of
+    truth on every call — cheap (one small read/write against a call that costs
+    ~$0.0066) and correct across restarts.
+
+    Failure policy, deliberately asymmetric:
+
+      * file missing -> treat as 0. This is the normal cold start (fresh machine,
+        first deploy). Refusing here would mean the feature never works at all.
+      * file present but corrupt/unparseable -> FAIL CLOSED (refuse /ask).
+      * increment cannot be written -> FAIL CLOSED (refuse /ask).
+
+    The last two are the defensible half. Writes are atomic (tmp file + fsync +
+    os.replace), so a torn write cannot produce corruption; if the file is
+    unreadable or the disk is unwritable, something is wrong that we cannot
+    reason about, and an unwritable disk specifically means the counter can never
+    advance -- i.e. the cap cannot be enforced at all and spend becomes unbounded
+    again. Fail-open costs real money with no ceiling; fail-closed costs a
+    degraded demo feature on a page that is explicitly built to work without it
+    (see module docstring: the site falls back to static graph + keyword search).
+    Money is the irreversible side, so it is the side we protect.
+
+    Scope note: the count is per machine filesystem. It is a *global* cap only
+    while the app runs a single machine, which is the intended deployment
+    (min_machines_running = 0, one machine in ewr). Scaling to N machines would
+    give N independent budgets.
+    """
+
+    def __init__(self, path: str, limit: int) -> None:
+        self.path = path
+        self.limit = limit
+        self._lock = threading.Lock()
+        # Why the last reservation was refused on state grounds, if it was. Sticky
+        # on purpose: an unwritable disk is invisible to a read-only health check,
+        # so the last write failure is the only evidence /health can show.
+        self.last_error: Optional[str] = None
+
+    @staticmethod
+    def _today() -> str:
+        return datetime.now(timezone.utc).strftime("%Y-%m-%d")
+
+    def _load(self) -> int:
+        """Calls already made today. 0 if the file is absent or from an earlier day."""
+        try:
+            with open(self.path, encoding="utf-8") as fh:
+                payload = json.load(fh)
+        except FileNotFoundError:
+            return 0
+        if not isinstance(payload, dict):
+            raise ValueError("state file is not a JSON object")
+        if payload.get("date") != self._today():
+            return 0                     # UTC rollover: yesterday's count is spent history
+        count = payload.get("count")
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            raise ValueError(f"bad count value: {count!r}")
+        return count
+
+    def _store(self, count: int) -> None:
+        os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
+        tmp = f"{self.path}.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"date": self._today(), "count": count}, fh)
+            fh.flush()
+            os.fsync(fh.fileno())        # survive a machine suspend/stop, not just a clean exit
+        os.replace(tmp, self.path)       # atomic: readers never see a half-written file
+
+    def reserve(self) -> tuple[bool, Optional[str]]:
+        """Consume one unit of today's budget. Returns (allowed, state_error).
+
+        Reserved BEFORE the model call, never after: a crash or timeout mid-call
+        still consumes budget, so a crash loop cannot spend without limit.
+
+        state_error is returned rather than read back off the instance, so a
+        concurrent request cannot rewrite it between the refusal and the reply.
+        """
+        with self._lock:
+            try:
+                count = self._load()
+            except Exception as exc:
+                self.last_error = f"unreadable ({exc})"
+                return False, self.last_error
+            if count >= self.limit:
+                self.last_error = None      # a plain cap hit is not a state fault
+                return False, None
+            try:
+                self._store(count + 1)
+            except Exception as exc:
+                self.last_error = f"unwritable ({exc})"
+                return False, self.last_error
+            self.last_error = None
+            return True, None
+
+    def peek(self) -> tuple[Optional[int], Optional[str]]:
+        """Read-only view for /health. Never raises, never consumes budget."""
+        with self._lock:
+            try:
+                return self._load(), None
+            except Exception as exc:
+                return None, f"unreadable ({exc})"
+
+
+BUDGET = _DailyBudget(STATE_PATH, DAILY_ASK_LIMIT)
+
+# Body shape for the global cap. `reason` is a contract with the frontend; the
+# per-IP 429 above deliberately has no `reason` field so the two are told apart.
+DAILY_LIMIT_BODY = {
+    "detail": (
+        f"The live Q&A has used its daily budget of {DAILY_ASK_LIMIT} answers. "
+        "Search and related work are unaffected; Q&A resets at 00:00 UTC."
+    ),
+    "reason": "daily_limit",
+}
+DAILY_STATE_BODY = {
+    "detail": (
+        "The live Q&A is paused: its daily spend guard cannot be read or updated, "
+        "so answers are held back until it can."
+    ),
+    "reason": "daily_limit",
+}
 
 
 # --- index + static data ----------------------------------------------------
@@ -239,6 +377,11 @@ class AskResponse(BaseModel):
 
 @app.get("/health")
 def health() -> dict:
+    # /health is exempt from the per-IP limiter and never touches a paid API, so
+    # today's spend can be checked without costing anything. daily_ask_state is
+    # read live here; daily_ask_last_error is the last write failure seen by an
+    # actual /ask, which a read-only check cannot detect on its own.
+    asks_today, budget_error = BUDGET.peek()
     return {
         "status": "ok" if INDEX.ready else "degraded",
         "embed_model": EMBED_MODEL,
@@ -247,6 +390,10 @@ def health() -> dict:
         "vectors": INDEX.collection.count() if INDEX.collection is not None else 0,
         "gemini_key": bool(os.environ.get("GEMINI_API_KEY")),
         "anthropic_key": bool(os.environ.get("ANTHROPIC_API_KEY")),
+        "asks_today": asks_today,
+        "daily_ask_limit": DAILY_ASK_LIMIT,
+        "daily_ask_state": budget_error or "ok",
+        "daily_ask_last_error": BUDGET.last_error,
         "error": INDEX.error,
     }
 
@@ -317,11 +464,22 @@ def _parse_answer(text: str) -> tuple[str, list[str]]:
 
 
 @app.post("/ask", response_model=AskResponse)
-def ask(req: AskRequest) -> AskResponse:
+def ask(req: AskRequest) -> AskResponse | JSONResponse:
     require_index()
     api_key = os.environ.get("ANTHROPIC_API_KEY")
     if not api_key:
         raise HTTPException(503, "ANTHROPIC_API_KEY is not configured")
+
+    # Spend brake, taken before any paid call (embedding included) so nothing
+    # downstream — a hang, a 500, a crash loop — can spend outside the budget.
+    # Returned as a JSONResponse rather than HTTPException because the body needs
+    # the `reason` field the frontend keys on, which HTTPException cannot carry.
+    allowed, state_error = BUDGET.reserve()
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content=DAILY_STATE_BODY if state_error else DAILY_LIMIT_BODY,
+        )
 
     hits = INDEX.query(embed_query(req.question), ASK_TOP_K)
     context = "\n\n".join(

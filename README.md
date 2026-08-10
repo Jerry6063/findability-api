@@ -82,6 +82,16 @@ Secrets come from the environment only — never from a file in this repo.
 | `FINDABILITY_MAX_TOKENS` | `600` | `/ask` answer cap |
 | `FINDABILITY_EDGE_THRESHOLD` | `0.70` | minimum cosine similarity for a graph edge |
 | `FINDABILITY_CORS` | — | extra allowed origins, comma separated |
+| `FINDABILITY_DAILY_ASK_LIMIT` | `150` | global `/ask` answers per UTC day, all callers combined |
+| `FINDABILITY_STATE_DIR` | app directory | where `ask-usage.json` (the daily counter) is kept |
+
+`FINDABILITY_RATE_LIMIT` shapes bursts but does not bound money: at 10/min/IP and
+~$0.0066 per answered `/ask`, one IP could spend ~$95/day. `FINDABILITY_DAILY_ASK_LIMIT`
+is the actual brake — global, not per IP, counted per UTC day, and persisted to
+`ask-usage.json` so Fly's scale-to-zero restarts cannot reset it. Over the cap,
+`/ask` returns `429 {"detail": "...", "reason": "daily_limit"}`; the per-IP 429 has
+no `reason` field, which is how the frontend tells them apart. `/search` and
+`/related` are never capped. `/health` reports `asks_today` / `daily_ask_limit`.
 
 ## Re-running ingestion
 

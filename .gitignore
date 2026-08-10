@@ -3,3 +3,5 @@ __pycache__/
 *.pyc
 .env
 .env.local
+ask-usage.json
+ask-usage.json.tmp
