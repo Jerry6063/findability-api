@@ -9,6 +9,17 @@ primary_region = "ewr"          # Newark: closest region to the site's author/au
 [build]
   dockerfile = "Dockerfile"
 
+# [env]
+#   # Deliberately commented out. Behind Fly Proxy the app sees the proxy as its
+#   # peer, so the per-IP limiter collapses into ONE bucket shared by every
+#   # visitor (raise FINDABILITY_RATE_LIMIT if you keep it that way). Setting the
+#   # header below restores per-visitor buckets — but only if Fly Proxy overwrites
+#   # a client-supplied Fly-Client-IP, which its docs do not actually state, and
+#   # Fly knowingly passes a client-set X-Forwarded-Port through. Uncomment only
+#   # as a deliberate assertion that the header is trustworthy here. Spend does
+#   # not depend on it either way: the daily budget ignores caller identity.
+#   FINDABILITY_CLIENT_IP_HEADER = "fly-client-ip"
+
 [http_service]
   # The Dockerfile's CMD binds ${PORT:-8200} and Fly does NOT inject PORT, so the
   # container really listens on 8200. This must stay in sync with that CMD.

@@ -14,12 +14,13 @@ required for the page to work; it is the online upgrade path.
 
 from __future__ import annotations
 
+import ipaddress
 import json
 import os
 import re
 import threading
 import time
-from collections import defaultdict, deque
+from collections import OrderedDict, deque
 from datetime import datetime, timezone
 from typing import Optional
 
@@ -49,13 +50,45 @@ ASK_MAX_TOKENS = int(os.environ.get("FINDABILITY_MAX_TOKENS", "600"))
 RATE_LIMIT = int(os.environ.get("FINDABILITY_RATE_LIMIT", "10"))  # requests
 RATE_WINDOW = 60.0  # seconds
 
-# Global spend brake on /ask. The per-IP limit above shapes bursts; it does not
-# bound money. At 10 req/min/IP and ~$0.0066 per answered /ask, one IP can spend
-# ~$95/day and ten can spend ~$950/day, which is the whole exposure of putting
-# this behind a public portfolio page. /search and /related are not capped: a
-# Gemini query embed is ~$0.0000015, four orders of magnitude cheaper, and they
-# are what the page actually leans on.
+# Which request header, if any, carries the caller's address. EMPTY BY DEFAULT.
+#
+# The first version read X-Forwarded-For and took the leftmost entry, which the
+# caller sets freely: forging one header minted a fresh bucket per request, so the
+# per-IP limiter throttled nobody who did not want to be throttled. Identity now
+# defaults to the direct peer address, which a caller cannot choose.
+#
+# Set this only when a proxy you control is in front AND you know it overwrites
+# the header rather than passing the client's copy through. On Fly the candidate
+# is `fly-client-ip`, but Fly's docs do not state that a client-supplied value is
+# replaced — they only define what the header means — and Fly deliberately lets
+# clients set X-Forwarded-Port, so pass-through is not hypothetical there.
+# Enabling this is an operator assertion; this code cannot verify it.
+#
+# Trade-off when left empty behind a proxy: every caller arrives from the proxy's
+# address, so the app gets ONE shared bucket. Raise FINDABILITY_RATE_LIMIT to suit.
+# Money is not at stake either way — the daily budget below is what bounds spend,
+# and it is deliberately independent of caller identity.
+CLIENT_IP_HEADER = os.environ.get("FINDABILITY_CLIENT_IP_HEADER", "").strip().lower()
+
+# Hard ceiling on tracked callers. One deque per distinct key with no eviction was
+# a remotely triggerable memory leak on a 512MB VM: anyone who could mint distinct
+# keys could grow the table without bound.
+MAX_TRACKED_CLIENTS = int(os.environ.get("FINDABILITY_MAX_TRACKED_CLIENTS", "4096"))
+
+# Global spend brake. The per-IP limit above shapes bursts; it does not bound
+# money, and (see CLIENT_IP_HEADER) it never bound a caller willing to forge a
+# header. At ~$0.0066 per answered /ask, one IP could spend ~$95/day and ten
+# ~$950/day, which is the whole exposure of putting this behind a public page.
 DAILY_ASK_LIMIT = int(os.environ.get("FINDABILITY_DAILY_ASK_LIMIT", "150"))
+
+# /search is capped far higher and for a different reason. Its cost is trivial
+# (~$0.0000015 per Gemini query embed — 5000/day is well under a cent), so this is
+# not a money brake: it protects the Gemini quota that /ask SHARES. A runaway
+# client looping /search could exhaust that quota and take /ask down with it, and
+# /ask has no fallback, while a failing /search degrades to client-side keyword
+# search. The cheap endpoint should not be able to starve the expensive one.
+DAILY_SEARCH_LIMIT = int(os.environ.get("FINDABILITY_DAILY_SEARCH_LIMIT", "5000"))
+
 STATE_DIR = os.environ.get("FINDABILITY_STATE_DIR", os.path.dirname(os.path.abspath(__file__)))
 STATE_PATH = os.path.join(STATE_DIR, "ask-usage.json")
 
@@ -75,16 +108,64 @@ app = FastAPI(
 
 # --- rate limit: in-memory, per client IP -----------------------------------
 
-_hits: dict[str, deque] = defaultdict(deque)
+# OrderedDict, not defaultdict: every hit moves its key to the end, so iteration
+# order IS least-recently-active order and eviction is a pop from the front.
+_hits: "OrderedDict[str, deque]" = OrderedDict()
 _hits_lock = threading.Lock()
 EXEMPT_PATHS = {"/health", "/docs", "/openapi.json", "/redoc"}
 
 
 def client_ip(request: Request) -> str:
-    fwd = request.headers.get("x-forwarded-for")
-    if fwd:
-        return fwd.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    """Identify the caller by something the caller cannot choose.
+
+    Falls back to the direct peer address in every failure case, never to another
+    client-supplied header — an unvalidated header fallback is the original bug
+    wearing a different hat.
+    """
+    peer = request.client.host if request.client else "unknown"
+    if not CLIENT_IP_HEADER:
+        return peer
+    raw = request.headers.get(CLIENT_IP_HEADER)
+    if not raw:
+        return peer
+    # Rightmost, not leftmost. In a comma-separated chain the last entry is the one
+    # the nearest proxy appended; everything to its left is whatever the caller
+    # chose to send. (Single-value headers like fly-client-ip are unaffected.)
+    candidate = raw.split(",")[-1].strip()
+    try:
+        ipaddress.ip_address(candidate)
+    except ValueError:
+        return peer          # not an address: junk or an injection attempt
+    return candidate
+
+
+def _evict_locked(now: float, keep: Optional[str] = None) -> None:
+    """Drop stale, then excess, buckets. Caller holds _hits_lock.
+
+    Front of the OrderedDict = least recently active, because every hit moves its
+    key to the end. First drop every bucket whose newest hit is already outside
+    the window: those can only ever decide "allow", so losing them changes no
+    decision. Then, if still over the ceiling, keep dropping from the front.
+
+    Evicting the least-recently-active caller, rather than refusing unknown keys
+    once full, is the deliberate choice: refusing would let one flooder lock every
+    other visitor out, while eviction at worst hands someone a fresh window — and
+    anyone able to mint unlimited keys already had one. This bounds memory, not
+    money; the daily budget bounds money and ignores identity entirely.
+
+    `keep` is the key being served right now, which must survive eviction even if
+    it is the only entry in the table.
+    """
+    while _hits:
+        key, bucket = next(iter(_hits.items()))
+        if key == keep or (bucket and now - bucket[-1] <= RATE_WINDOW):
+            break
+        _hits.popitem(last=False)
+    while len(_hits) > MAX_TRACKED_CLIENTS:
+        key, _ = next(iter(_hits.items()))
+        if key == keep:
+            break
+        _hits.popitem(last=False)
 
 
 async def rate_limit(request: Request, call_next):
@@ -92,9 +173,13 @@ async def rate_limit(request: Request, call_next):
         return await call_next(request)
     ip, now = client_ip(request), time.monotonic()
     with _hits_lock:
-        bucket = _hits[ip]
+        bucket = _hits.get(ip)
+        if bucket is None:
+            bucket = _hits[ip] = deque()
+        _hits.move_to_end(ip)            # keeps insertion order == last-active order
         while bucket and now - bucket[0] > RATE_WINDOW:
             bucket.popleft()
+        _evict_locked(now, keep=ip)
         if len(bucket) >= RATE_LIMIT:
             retry_after = int(RATE_WINDOW - (now - bucket[0])) + 1
             return JSONResponse(
@@ -118,18 +203,18 @@ app.add_middleware(
 )
 
 
-# --- global daily spend brake on /ask ---------------------------------------
+# --- global daily budgets, one counter per paid endpoint --------------------
 
 class _DailyBudget:
-    """Global, disk-persisted count of answered /ask calls for the current UTC day.
+    """Global, disk-persisted per-endpoint call counts for the current UTC day.
 
     Persisted, not in-memory, because this runs on Fly with scale-to-zero: the
     process is stopped and woken constantly, so an in-memory counter would reset
-    on every wake and the cap would enforce nothing. The file is the source of
+    on every wake and the caps would enforce nothing. The file is the source of
     truth on every call — cheap (one small read/write against a call that costs
     ~$0.0066) and correct across restarts.
 
-    Failure policy, deliberately asymmetric:
+    Failure policy for the "ask" counter, deliberately asymmetric:
 
       * file missing -> treat as 0. This is the normal cold start (fresh machine,
         first deploy). Refusing here would mean the feature never works at all.
@@ -146,15 +231,23 @@ class _DailyBudget:
     (see module docstring: the site falls back to static graph + keyword search).
     Money is the irreversible side, so it is the side we protect.
 
-    Scope note: the count is per machine filesystem. It is a *global* cap only
+    The "search" counter inverts the last two, on purpose — see fail_open below.
+
+    Scope note: the counts are per machine filesystem. They are *global* caps only
     while the app runs a single machine, which is the intended deployment
     (min_machines_running = 0, one machine in ewr). Scaling to N machines would
     give N independent budgets.
     """
 
-    def __init__(self, path: str, limit: int) -> None:
+    def __init__(self, path: str, limits: dict[str, int], fail_open: frozenset[str]) -> None:
         self.path = path
-        self.limit = limit
+        self.limits = limits
+        # Counters that keep serving when the state file cannot be read or written.
+        # Only "search" qualifies: nothing irreversible is at stake there (a query
+        # embed is ~$0.0000015), a failed /search degrades to client-side keyword
+        # search, and refusing it would trade a certain outage for a hypothetical
+        # quota problem. /ask is never in this set, because money is.
+        self.fail_open = fail_open
         self._lock = threading.Lock()
         # Why the last reservation was refused on state grounds, if it was. Sticky
         # on purpose: an unwritable disk is invisible to a read-only health check,
@@ -165,35 +258,44 @@ class _DailyBudget:
     def _today() -> str:
         return datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
-    def _load(self) -> int:
-        """Calls already made today. 0 if the file is absent or from an earlier day."""
+    def _load(self) -> dict[str, int]:
+        """Calls made today per key. Empty if the file is absent or from an earlier day."""
         try:
             with open(self.path, encoding="utf-8") as fh:
                 payload = json.load(fh)
         except FileNotFoundError:
-            return 0
+            return {}
         if not isinstance(payload, dict):
             raise ValueError("state file is not a JSON object")
         if payload.get("date") != self._today():
-            return 0                     # UTC rollover: yesterday's count is spent history
-        count = payload.get("count")
-        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
-            raise ValueError(f"bad count value: {count!r}")
-        return count
+            return {}                    # UTC rollover: yesterday's counts are spent history
+        counts = payload.get("counts")
+        if counts is None and "count" in payload:
+            # Pre-/search file shape ({"date","count"}). Read it rather than calling
+            # it corrupt: treating a legitimate older file as corrupt would fail
+            # /ask closed on the first deploy after this change, which is a
+            # self-inflicted outage, not a safety win.
+            counts = {"ask": payload["count"]}
+        if not isinstance(counts, dict):
+            raise ValueError(f"bad counts value: {counts!r}")
+        for key, value in counts.items():
+            if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+                raise ValueError(f"bad count for {key!r}: {value!r}")
+        return {str(k): int(v) for k, v in counts.items()}
 
-    def _store(self, count: int) -> None:
+    def _store(self, counts: dict[str, int]) -> None:
         os.makedirs(os.path.dirname(self.path) or ".", exist_ok=True)
         tmp = f"{self.path}.tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"date": self._today(), "count": count}, fh)
+            json.dump({"date": self._today(), "counts": counts}, fh)
             fh.flush()
             os.fsync(fh.fileno())        # survive a machine suspend/stop, not just a clean exit
         os.replace(tmp, self.path)       # atomic: readers never see a half-written file
 
-    def reserve(self) -> tuple[bool, Optional[str]]:
-        """Consume one unit of today's budget. Returns (allowed, state_error).
+    def reserve(self, key: str) -> tuple[bool, Optional[str]]:
+        """Consume one unit of today's budget for `key`. Returns (allowed, state_error).
 
-        Reserved BEFORE the model call, never after: a crash or timeout mid-call
+        Reserved BEFORE the paid call, never after: a crash or timeout mid-call
         still consumes budget, so a crash loop cannot spend without limit.
 
         state_error is returned rather than read back off the instance, so a
@@ -201,31 +303,36 @@ class _DailyBudget:
         """
         with self._lock:
             try:
-                count = self._load()
+                counts = self._load()
             except Exception as exc:
                 self.last_error = f"unreadable ({exc})"
-                return False, self.last_error
-            if count >= self.limit:
+                return (key in self.fail_open), self.last_error
+            if counts.get(key, 0) >= self.limits[key]:
                 self.last_error = None      # a plain cap hit is not a state fault
                 return False, None
+            counts[key] = counts.get(key, 0) + 1
             try:
-                self._store(count + 1)
+                self._store(counts)
             except Exception as exc:
                 self.last_error = f"unwritable ({exc})"
-                return False, self.last_error
+                return (key in self.fail_open), self.last_error
             self.last_error = None
             return True, None
 
-    def peek(self) -> tuple[Optional[int], Optional[str]]:
+    def peek(self) -> tuple[dict[str, int], Optional[str]]:
         """Read-only view for /health. Never raises, never consumes budget."""
         with self._lock:
             try:
                 return self._load(), None
             except Exception as exc:
-                return None, f"unreadable ({exc})"
+                return {}, f"unreadable ({exc})"
 
 
-BUDGET = _DailyBudget(STATE_PATH, DAILY_ASK_LIMIT)
+BUDGET = _DailyBudget(
+    STATE_PATH,
+    limits={"ask": DAILY_ASK_LIMIT, "search": DAILY_SEARCH_LIMIT},
+    fail_open=frozenset({"search"}),
+)
 
 # Body shape for the global cap. `reason` is a contract with the frontend; the
 # per-IP 429 above deliberately has no `reason` field so the two are told apart.
@@ -242,6 +349,16 @@ DAILY_STATE_BODY = {
         "so answers are held back until it can."
     ),
     "reason": "daily_limit",
+}
+# Distinct reason string on purpose: `daily_limit` means "Q&A is out of budget"
+# to the frontend and is already coded against, so /search must not borrow it.
+# The page treats any failed /search as "fall back to keyword search" regardless.
+SEARCH_LIMIT_BODY = {
+    "detail": (
+        f"Semantic search has used its daily budget of {DAILY_SEARCH_LIMIT} queries "
+        "and resets at 00:00 UTC."
+    ),
+    "reason": "search_daily_limit",
 }
 
 
@@ -381,7 +498,7 @@ def health() -> dict:
     # today's spend can be checked without costing anything. daily_ask_state is
     # read live here; daily_ask_last_error is the last write failure seen by an
     # actual /ask, which a read-only check cannot detect on its own.
-    asks_today, budget_error = BUDGET.peek()
+    counts, budget_error = BUDGET.peek()
     return {
         "status": "ok" if INDEX.ready else "degraded",
         "embed_model": EMBED_MODEL,
@@ -390,17 +507,31 @@ def health() -> dict:
         "vectors": INDEX.collection.count() if INDEX.collection is not None else 0,
         "gemini_key": bool(os.environ.get("GEMINI_API_KEY")),
         "anthropic_key": bool(os.environ.get("ANTHROPIC_API_KEY")),
-        "asks_today": asks_today,
+        "asks_today": None if budget_error else counts.get("ask", 0),
         "daily_ask_limit": DAILY_ASK_LIMIT,
+        "searches_today": None if budget_error else counts.get("search", 0),
+        "daily_search_limit": DAILY_SEARCH_LIMIT,
         "daily_ask_state": budget_error or "ok",
         "daily_ask_last_error": BUDGET.last_error,
+        # Which identity the limiter is actually using. A misconfiguration here is
+        # invisible in behaviour until someone is either bypassing the limit or
+        # sharing one bucket with the whole internet, so it is worth stating.
+        "client_ip_source": f"header:{CLIENT_IP_HEADER}" if CLIENT_IP_HEADER else "peer",
+        "tracked_clients": len(_hits),
         "error": INDEX.error,
     }
 
 
 @app.post("/search", response_model=SearchResponse)
-def search(req: SearchRequest) -> SearchResponse:
+def search(req: SearchRequest) -> SearchResponse | JSONResponse:
     require_index()
+    # Not a money brake (see DAILY_SEARCH_LIMIT): this stops a runaway client from
+    # burning the Gemini quota that /ask also depends on. Fails OPEN if the counter
+    # itself is broken — the opposite of /ask, because nothing irreversible is at
+    # stake here and a dead search is a worse outcome than an uncounted one.
+    allowed, _ = BUDGET.reserve("search")
+    if not allowed:
+        return JSONResponse(status_code=429, content=SEARCH_LIMIT_BODY)
     hits = INDEX.query(embed_query(req.query), SEARCH_TOP_K)
     return SearchResponse(
         query=req.query,
@@ -474,7 +605,7 @@ def ask(req: AskRequest) -> AskResponse | JSONResponse:
     # downstream — a hang, a 500, a crash loop — can spend outside the budget.
     # Returned as a JSONResponse rather than HTTPException because the body needs
     # the `reason` field the frontend keys on, which HTTPException cannot carry.
-    allowed, state_error = BUDGET.reserve()
+    allowed, state_error = BUDGET.reserve("ask")
     if not allowed:
         return JSONResponse(
             status_code=429,

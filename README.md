@@ -83,15 +83,46 @@ Secrets come from the environment only — never from a file in this repo.
 | `FINDABILITY_EDGE_THRESHOLD` | `0.70` | minimum cosine similarity for a graph edge |
 | `FINDABILITY_CORS` | — | extra allowed origins, comma separated |
 | `FINDABILITY_DAILY_ASK_LIMIT` | `150` | global `/ask` answers per UTC day, all callers combined |
-| `FINDABILITY_STATE_DIR` | app directory | where `ask-usage.json` (the daily counter) is kept |
+| `FINDABILITY_DAILY_SEARCH_LIMIT` | `5000` | global `/search` queries per UTC day |
+| `FINDABILITY_STATE_DIR` | app directory | where `ask-usage.json` (the daily counters) is kept |
+| `FINDABILITY_CLIENT_IP_HEADER` | — | header naming the caller; empty means the direct peer address |
+| `FINDABILITY_MAX_TRACKED_CLIENTS` | `4096` | ceiling on rate-limiter buckets held in memory |
+
+### Why the daily budget exists
 
 `FINDABILITY_RATE_LIMIT` shapes bursts but does not bound money: at 10/min/IP and
 ~$0.0066 per answered `/ask`, one IP could spend ~$95/day. `FINDABILITY_DAILY_ASK_LIMIT`
 is the actual brake — global, not per IP, counted per UTC day, and persisted to
 `ask-usage.json` so Fly's scale-to-zero restarts cannot reset it. Over the cap,
 `/ask` returns `429 {"detail": "...", "reason": "daily_limit"}`; the per-IP 429 has
-no `reason` field, which is how the frontend tells them apart. `/search` and
-`/related` are never capped. `/health` reports `asks_today` / `daily_ask_limit`.
+no `reason` field, which is how the frontend tells them apart. `/health` reports
+`asks_today` / `daily_ask_limit` for free.
+
+`/search` has its own, far larger cap and a **different** reason string
+(`search_daily_limit`). That cap is not about money — a query embed is ~$0.0000015,
+so 5000/day is under a cent. It exists because `/search` and `/ask` share one
+Gemini quota, and a client looping `/search` could exhaust it and take `/ask` down
+as collateral. The two also fail in opposite directions on purpose: if the counter
+file is unreadable or unwritable, `/ask` fails **closed** (money is irreversible)
+while `/search` fails **open** (nothing irreversible is at stake, and the page
+already degrades to client-side keyword search when `/search` is unavailable).
+`/related` touches no external API and is never capped.
+
+### Caller identity
+
+The limiter keys on the direct peer address by default. It used to key on the
+leftmost `X-Forwarded-For` entry, which the caller sets freely — forging that
+header minted a fresh bucket per request, so the limiter throttled nobody who
+did not wish to be throttled.
+
+Set `FINDABILITY_CLIENT_IP_HEADER` only when a proxy you control sits in front and
+you know it **overwrites** that header. Fly's docs describe `Fly-Client-IP` as the
+client address as seen by Fly Proxy, but they do not say a client-supplied value is
+replaced, and Fly knowingly lets clients set `X-Forwarded-Port` — so treat enabling
+it as your assertion, not a guarantee. Leaving it empty behind a proxy is safe but
+collapses every visitor into one shared bucket; raise `FINDABILITY_RATE_LIMIT` if
+you do that. Either way the daily budget, which ignores identity, is what bounds
+spend. `/health` reports the active mode as `client_ip_source`.
 
 ## Re-running ingestion
 
