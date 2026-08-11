@@ -46,6 +46,18 @@ SEARCH_TOP_K = 5
 # k=5 it sees two and answers. The fifth chunk is a wanted citation only 2/24 of
 # the time and costs ~300 input tokens, which is the trade being made here.
 ASK_TOP_K = 5
+
+# Stays at 600 even though answers are now a third of their old length, because
+# this is a safety ceiling and not the brevity control — brevity lives in the
+# prompt (see ASK_SYSTEM). Lowering it to "enforce" short answers would enforce
+# nothing and break the ones that overrun: the reply is prefilled with `{` to force
+# JSON, and a max_tokens stop cuts the object before its closing brace. There is no
+# stop_reason check, `_parse_answer` cannot parse an unterminated object, and its
+# prose fallback slices at the first `{` — which is character zero — so the visitor
+# would be shown the raw broken JSON string with zero citations — verified by feeding
+# truncated JSON straight to `_parse_answer`. The longest reply in the golden run went
+# from 743 to 426 characters, i.e. from roughly 220 to roughly 140 tokens including the
+# envelope, so this change moved the ceiling further away rather than closer.
 ASK_MAX_TOKENS = int(os.environ.get("FINDABILITY_MAX_TOKENS", "600"))
 RATE_LIMIT = int(os.environ.get("FINDABILITY_RATE_LIMIT", "10"))  # requests
 RATE_WINDOW = 60.0  # seconds
@@ -557,6 +569,31 @@ def related(item_id: str) -> RelatedResponse:
     return RelatedResponse(id=item_id, related=items)
 
 
+# The length rule is a sentence count, not a word ceiling, and that is deliberate.
+#
+# The old rule said "at most 120 words". A ceiling with no target is a zone to fill:
+# measured over the 34 golden answers it produced a mean of 69.7 English words — 58%
+# of the cap, just under four sentences — because nothing in the prompt said brevity
+# was wanted, only that overrun was forbidden. On the landing page that is a wall
+# of grey prose under the graph, which is the actual complaint this rule answers.
+#
+# Three things the wording has to survive, each learned the expensive way:
+#
+# 1. "Words" does not bind Chinese. Whitespace-splitting a 300-character Chinese
+#    answer yields ~30 "words", so the old cap governed English only and left the
+#    Chinese answers ungoverned — they were the longest thing the page could show.
+#    Sentences count the same in both scripts, and the per-script character/word
+#    guides below are secondary hints, not the mechanism.
+# 2. The partial-answer clause is the first casualty of compression. The ASK_TOP_K
+#    4→5 change exists precisely so a half-supported enumeration can be answered
+#    honestly ("he did X and Y; the portfolio does not say about the rest"). Told
+#    only to be short, a model drops the second clause and the answer silently
+#    becomes an overclaim — invisible in the refusal matrix, because such entries
+#    are scored as answered, not refused. Hence its own rule, with its own reason.
+# 3. "Be brief about several things" is the instruction that makes a model reach
+#    for a bullet list, so the no-markdown clause was pulled out of the length
+#    bullet it used to share and given its own line. The frontend escapes the
+#    answer into a single <p>; emitted markdown renders as literal asterisks.
 ASK_SYSTEM = """You answer questions about the portfolio of Zhengrui (Jerry) Hao, \
 a designer-engineer working on HCI, wearables and interactive systems.
 
@@ -565,10 +602,19 @@ Rules:
   of your knowledge about Jerry. Never use outside knowledge about him and never
   guess.
 - If the context does not contain the answer, say plainly that his portfolio does
-  not cover it. Do not speculate about him and do not offer to help with it.
+  not cover it, naming the thing it does not cover. Do not speculate about him and
+  do not offer to help with it. An adjacent fact you do have is worth one sentence,
+  but it never replaces saying what is missing.
+- If the context answers only part of the question, answer that part and say in the
+  same breath that his portfolio does not cover the rest. Being brief is never a
+  reason to drop that second clause: a short answer that sounds complete when it is
+  not is worse than a long one.
 - Decline anything unrelated to Jerry's work in one short sentence.
-- Answer in at most 120 words of plain prose. No markdown at all: no headings,
-  no bullet lists, no ** bold **.
+- Be brief. Two sentences, three at the very most — roughly 45 English words or 80
+  Chinese characters, whichever script the question is in. Lead with the direct
+  answer and add at most one supporting specific. Do not enumerate everything the
+  context offers; pick the part the question asked for and leave the rest.
+- No markdown at all: no headings, no bullet lists, no ** bold **.
 - Output ONE JSON object and absolutely nothing else — no prose before or after it:
   {"answer": "<your answer>", "cited_ids": ["<id of each context entry you used>"]}
   cited_ids must be a subset of the context ids, and empty when you could not answer."""

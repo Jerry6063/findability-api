@@ -8,10 +8,10 @@ Samples: 28 answerable golden entries scored on the four metrics; all 34 answers
 
 | metric | mean |
 | --- | --- |
-| faithfulness | 0.7044 |
-| answer_relevancy | 0.7589 |
+| faithfulness | 0.8774 |
+| answer_relevancy | 0.7282 |
 | context_precision | 0.7798 |
-| context_recall | 0.9643 |
+| context_recall | 0.9762 |
 
 ## Refusal behaviour (all 34 entries)
 
@@ -28,66 +28,66 @@ Measured in both directions on purpose: a service that refuses everything would 
 
 ## Three weakest entries
 
-### g18 (direct, zh) — faithfulness 0.000, answer_relevancy 0.747, context_precision 1.000, context_recall 1.000
+### g09 (direct, en) — faithfulness 0.167, answer_relevancy 0.650, context_precision 1.000, context_recall 1.000
 
-**Q** 他在建筑设计院实习过吗？那段时间具体负责哪些工作？
+**Q** Who did he collaborate with on the plant-based neighborhood game, and which part did he handle himself?
 
-**Expected citations** `thu-adri` — **retrieved** `thu-adri, haptic-navigation-research, hxvp-marketing-group, start-me-up, spatial-pixel-lab` — **cited** `thu-adri`
+**Expected citations** `floralink` — **retrieved** `floralink, spatial-pixel-lab, haptic-navigation-research, social-rhythm, haptic-atlas` — **cited** `floralink`
 
-**Answer** 是的，Jerry 在清华大学建筑设计研究院担任过助理建筑师实习生，时间是 2024 年 7 月至 11 月。他主要负责两方面工作：第一，使用 Rhino 和 Grasshopper 编写脚本进行日照分析和人流动线分析，这些分析结果为 3 个总体规划和 4 个体量方案的学术建筑项目提供了设计决策依据；第二，在 20 多张 CAD 审查图纸中处理了 15 项以上的规范和无障碍条款，并将施工图协调中的冲突减少了约 25%。
+**Answer** He collaborated with Xiaotong Qin on FloraLink, the plant-based neighborhood game. Jerry handled the sociological research, game mechanism design, drawings, and model making.
 
-### g22 (cross, en) — faithfulness 0.167, answer_relevancy 0.653, context_precision 0.500, context_recall 1.000
+### g22 (cross, en) — faithfulness 0.500, answer_relevancy 0.715, context_precision 0.500, context_recall 1.000
 
 **Q** His current job and one of the projects on the site both seem to be about the same studio platform — how do the two connect?
 
 **Expected citations** `hxvp-marketing-group, hxvp` — **retrieved** `hxvp, hxvp-marketing-group, ikon-pass-japan, spatial-pixel-lab, haptic-navigation-research` — **cited** `hxvp, hxvp-marketing-group`
 
-**Answer** Jerry's current role at HXVP Marketing Group is as an AI Solutions Engineer embedded at a film production studio, where he owned the complete 0→1 rebuild of its operations platform. That rebuild is the HXVP Studio Portal project featured on his portfolio. He authored the product requirements, shipped four role-based portals in React, turned the designer's Figma frames into the prototype the backend engineer used as a living API spec, and drove nine-plus releases in four weeks on an AI-assisted workflow. The job entry describes the work; the project entry showcases the delivered system with a walkthrough of its full production cycle.
+**Answer** They are the same platform at different stages. Jerry embedded at HXVP Marketing Group to own the 0→1 rebuild of its operations system, and that rebuild — four role-based portals he designed and prototyped in React — became the HXVP Studio Portal project now live on his portfolio.
 
-### g12 (direct, en) — faithfulness 0.231, answer_relevancy 0.657, context_precision 1.000, context_recall 1.000
+### g23 (cross, en) — faithfulness 0.500, answer_relevancy 0.682, context_precision 1.000, context_recall 1.000
 
-**Q** Where is he working right now, and what did he own in that role?
+**Q** He seems to have both a wearable navigation project and an ongoing research role in that same area — how do the two fit together?
 
-**Expected citations** `hxvp-marketing-group` — **retrieved** `hxvp-marketing-group, haptic-navigation-research, start-me-up, thu-adri, hxvp` — **cited** `hxvp-marketing-group`
+**Expected citations** `haptic-navigation-research, haptic-atlas` — **retrieved** `haptic-atlas, haptic-navigation-research, belt-for-the-blind, spatial-pixel-lab, findability` — **cited** `haptic-atlas, haptic-navigation-research`
 
-**Answer** Jerry is currently working as an AI Solutions Engineer at HXVP Marketing Group in Dallas and New York. In this role, he owned the complete 0-to-1 rebuild of the studio's operations platform. He authored the product requirements document and shipped four role-based portals—for production, client, talent, and crew—to live public deployment. He turned Figma designs into a high-fidelity React 19 prototype that served as the living specification for the backend team, audited nearly 290 API endpoints in the legacy Django backend, and automated talent-booking and crew-scheduling workflows. His AI-assisted development process enabled stakeholder requests to ship to production within days, delivering more than nine releases in four weeks.
+**Answer** Haptic Atlas is the v1 wearable prototype that launched the research program; the ongoing research role at Columbia GSAPP and Tsinghua leads that same program, which has since grown the wearable into a multi-motor haptic belt.
 
 
 ## Per entry
 
 | id | cat | lang | faith. | ans.rel. | ctx.prec. | ctx.rec. | refused | cited |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| g01 | direct | en | 1.000 | 0.845 | 1.000 | 1.000 | no | hxvp |
-| g02 | direct | en | 1.000 | 0.726 | 1.000 | 1.000 | no | hxvp |
-| g03 | direct | en | 1.000 | 0.851 | 1.000 | 1.000 | no | hxvp |
-| g04 | direct | zh | 0.588 | 0.651 | 1.000 | 1.000 | no | hxvp, hxvp-marketing-group |
-| g05 | direct | en | 0.700 | 0.835 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
-| g06 | direct | en | 0.600 | 0.835 | 0.833 | 1.000 | no | haptic-atlas, haptic-navigation-research |
-| g07 | direct | en | 0.889 | 0.638 | 1.000 | 1.000 | no | social-rhythm, spatial-pixel-lab |
-| g08 | direct | en | 1.000 | 0.683 | 1.000 | 1.000 | no | social-rhythm |
-| g09 | direct | en | 0.375 | 0.651 | 1.000 | 1.000 | no | floralink |
-| g10 | direct | en | 0.778 | 0.607 | 1.000 | 1.000 | no | heartwhisper |
-| g11 | direct | en | 0.636 | 0.905 | 1.000 | 1.000 | no | belt-for-the-blind |
-| g12 | direct | en | 0.231 | 0.657 | 1.000 | 1.000 | no | hxvp-marketing-group |
-| g13 | direct | en | 0.667 | 0.710 | 0.500 | 1.000 | no | hxvp-marketing-group |
-| g14 | direct | zh | 0.875 | 0.661 | 1.000 | 1.000 | no | hxvp-marketing-group |
-| g15 | direct | en | 0.500 | 0.890 | 1.000 | 1.000 | no | spatial-pixel-lab, social-rhythm |
-| g16 | direct | en | 0.900 | 0.795 | 1.000 | 1.000 | no | start-me-up |
-| g17 | direct | en | 1.000 | 0.837 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
-| g18 | direct | zh | 0.000 | 0.747 | 1.000 | 1.000 | no | thu-adri |
-| g19 | direct | en | 1.000 | 0.885 | 1.000 | 1.000 | no | ascii-motion-jellyfish |
-| g20 | direct | en | 0.778 | 0.730 | 1.000 | 1.000 | no | ikon-atlas, ikon-pass-japan |
-| g21 | direct | en | 0.875 | 0.729 | 1.000 | 1.000 | no | findability |
-| g22 | cross | en | 0.167 | 0.653 | 0.500 | 1.000 | no | hxvp, hxvp-marketing-group |
-| g23 | cross | en | 0.750 | 0.754 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
-| g24 | cross | en | 0.538 | 0.769 | 0.000 | 1.000 | no | spatial-pixel-lab, social-rhythm |
-| g25 | cross | en | 0.778 | 0.898 | 0.000 | 0.667 | no | belt-for-the-blind, social-rhythm |
-| g26 | cross | en | 0.750 | 0.774 | 0.000 | 0.667 | no | floralink, heartwhisper |
-| g27 | cross | en | 0.600 | 0.842 | 0.000 | 0.667 | no | belt-for-the-blind, heartwhisper |
-| g28 | cross | zh | 0.750 | 0.691 | 0.000 | 1.000 | no | ikon-pass-japan, ikon-atlas |
+| g01 | direct | en | 1.000 | 0.812 | 1.000 | 1.000 | no | hxvp |
+| g02 | direct | en | 1.000 | 0.592 | 1.000 | 1.000 | no | hxvp |
+| g03 | direct | en | 1.000 | 0.769 | 1.000 | 1.000 | no | hxvp |
+| g04 | direct | zh | 1.000 | 0.727 | 1.000 | 1.000 | no | hxvp, hxvp-marketing-group |
+| g05 | direct | en | 1.000 | 0.772 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
+| g06 | direct | en | 0.833 | 0.776 | 0.833 | 1.000 | no | haptic-atlas, haptic-navigation-research |
+| g07 | direct | en | 1.000 | 0.583 | 1.000 | 1.000 | no | social-rhythm |
+| g08 | direct | en | 1.000 | 0.746 | 1.000 | 1.000 | no | social-rhythm |
+| g09 | direct | en | 0.167 | 0.650 | 1.000 | 1.000 | no | floralink |
+| g10 | direct | en | 1.000 | 0.701 | 1.000 | 1.000 | no | heartwhisper |
+| g11 | direct | en | 0.667 | 0.897 | 1.000 | 1.000 | no | belt-for-the-blind |
+| g12 | direct | en | 1.000 | 0.699 | 1.000 | 1.000 | no | hxvp-marketing-group |
+| g13 | direct | en | 1.000 | 0.745 | 0.500 | 1.000 | no | hxvp-marketing-group |
+| g14 | direct | zh | 0.857 | 0.605 | 1.000 | 1.000 | no | hxvp-marketing-group |
+| g15 | direct | en | 0.750 | 0.878 | 1.000 | 1.000 | no | spatial-pixel-lab |
+| g16 | direct | en | 0.800 | 0.782 | 1.000 | 1.000 | no | start-me-up |
+| g17 | direct | en | 1.000 | 0.811 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
+| g18 | direct | zh | 0.917 | 0.716 | 1.000 | 1.000 | no | thu-adri |
+| g19 | direct | en | 1.000 | 0.729 | 1.000 | 1.000 | no | ascii-motion-jellyfish |
+| g20 | direct | en | 1.000 | 0.626 | 1.000 | 1.000 | no | ikon-atlas, ikon-pass-japan |
+| g21 | direct | en | 1.000 | 0.686 | 1.000 | 1.000 | no | findability |
+| g22 | cross | en | 0.500 | 0.715 | 0.500 | 1.000 | no | hxvp, hxvp-marketing-group |
+| g23 | cross | en | 0.500 | 0.682 | 1.000 | 1.000 | no | haptic-atlas, haptic-navigation-research |
+| g24 | cross | en | 1.000 | 0.803 | 0.000 | 1.000 | no | spatial-pixel-lab, social-rhythm |
+| g25 | cross | en | 1.000 | 0.666 | 0.000 | 0.667 | no | social-rhythm, belt-for-the-blind |
+| g26 | cross | en | 0.909 | 0.628 | 0.000 | 1.000 | no | floralink, heartwhisper |
+| g27 | cross | en | 0.833 | 0.865 | 0.000 | 0.667 | no | belt-for-the-blind, heartwhisper |
+| g28 | cross | zh | 0.833 | — | 0.000 | 1.000 | no | ikon-pass-japan, ikon-atlas |
 | g29 | refusal | en | — | — | — | — | yes | — |
 | g30 | refusal | zh | — | — | — | — | yes | heartwhisper |
 | g31 | refusal | en | — | — | — | — | yes | — |
-| g32 | refusal | en | — | — | — | — | yes | spatial-pixel-lab, ikon-pass-japan, haptic-navigation-research |
+| g32 | refusal | en | — | — | — | — | yes | spatial-pixel-lab, haptic-navigation-research |
 | g33 | refusal | en | — | — | — | — | yes | — |
 | g34 | refusal | en | — | — | — | — | yes | — |

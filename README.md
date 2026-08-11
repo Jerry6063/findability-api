@@ -36,17 +36,20 @@ Rate limit: 10 requests/minute/IP (in-memory), `429` + `Retry-After` past that;
 
 ## Evaluation
 
-`evals/` holds the measurement layer — a 30-entry golden set and the scripts that
-score retrieval and `/ask` against it. Full numbers and methodology in `PROGRESS.md`
-(Stage E); the short version:
+`evals/` holds the measurement layer — a 34-entry golden set (28 of them scorable;
+the 6 out-of-corpus ones have no retrieval ground truth) and the scripts that score
+retrieval and `/ask` against it. Full numbers and methodology in `PROGRESS.md`
+(Stage E, plus the later corpus refresh and the answer-length change); the short
+version:
 
 | what | number |
 | --- | --- |
-| retrieval hit-rate@3 / @5 | 0.9167 / 1.0000 |
-| retrieval MRR | 0.8958 |
+| retrieval hit-rate@3 / @5 | 0.9286 / 1.0000 |
+| retrieval MRR | 0.9107 |
 | cross-lingual (Chinese questions, English corpus) hit@3 | 1.0000 |
 | refusal accuracy (out-of-corpus correctly declined) | 6/6 |
-| false-refusal rate (answerable wrongly declined) | 1/24 |
+| false-refusal rate (answerable wrongly declined) | 0/28 |
+| `/ask` answer length (mean, 34 real calls) | 31.9 words / 1.85 sentences |
 
 ```
 python evals/run_retrieval.py     # metrics + regenerate the CI vector cache
