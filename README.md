@@ -36,20 +36,27 @@ Rate limit: 10 requests/minute/IP (in-memory), `429` + `Retry-After` past that;
 
 ## Evaluation
 
-`evals/` holds the measurement layer — a 34-entry golden set (28 of them scorable;
+`evals/` holds the measurement layer — a 36-entry golden set (30 of them scorable;
 the 6 out-of-corpus ones have no retrieval ground truth) and the scripts that score
 retrieval and `/ask` against it. Full numbers and methodology in `PROGRESS.md`
-(Stage E, plus the later corpus refresh and the answer-length change); the short
-version:
+(Stage E, plus the later corpus refresh, the answer-length change and the
+citation-guarantee re-run); the short version:
 
 | what | number |
 | --- | --- |
-| retrieval hit-rate@3 / @5 | 0.9286 / 1.0000 |
-| retrieval MRR | 0.9107 |
+| retrieval hit-rate@3 / @5 | 0.9333 / 1.0000 |
+| retrieval MRR | 0.9000 |
 | cross-lingual (Chinese questions, English corpus) hit@3 | 1.0000 |
 | refusal accuracy (out-of-corpus correctly declined) | 6/6 |
-| false-refusal rate (answerable wrongly declined) | 0/28 |
-| `/ask` answer length (mean, 34 real calls) | 31.9 words / 1.85 sentences |
+| false-refusal rate (fully-answerable wrongly declined) | 0/28 |
+| answerable entries carrying at least one citation | 30/30 |
+| `/ask` answer length (mean, 36 real calls) | 33.7 words / 1.86 sentences |
+
+The false-refusal denominator is 28, not 30, on purpose: the two `partial` entries
+answer one half of a question and decline the other, and the refusal judge emits a
+binary refused/answered label that cannot represent that. Both were read by hand and
+both answer their answerable half correctly. Read PROGRESS.md (2026-08-11) before
+quoting the generated report's `2/30` figure.
 
 ```
 python evals/run_retrieval.py     # metrics + regenerate the CI vector cache
