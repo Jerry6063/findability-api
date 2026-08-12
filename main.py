@@ -374,6 +374,88 @@ SEARCH_LIMIT_BODY = {
 }
 
 
+# --- citation recovery ------------------------------------------------------
+#
+# The card on the landing page renders one source chip per citation and nothing at
+# all for an empty list, so an answer full of portfolio specifics that arrives with
+# `citations: []` reads as a model inventing things. On a grounded-answer feature
+# sitting on someone's portfolio that is the worst failure available, and it was
+# reachable: see item 4 above ASK_SYSTEM for the prompt contradiction that produced
+# it (1 sample in 3 of the programming-languages question, real specifics, no
+# citations). Rewording the prompt is the fix. This is the net under it, because a
+# prompt is a request and this is a guarantee.
+#
+# What it does NOT do is guess. It runs only when nothing usable came back from the
+# model, it never overrides a citation the model did report, and it names a chunk
+# only when the answer literally reuses at least EVIDENCE_MIN_TERMS distinctive
+# words of that chunk's own text — so a recovered chip always points at a source
+# that contains the wording the visitor is reading. Attribution by containment is
+# weaker than attribution by intent, and it is the strongest claim that can be made
+# without asking the model a second time (which costs another paid call, doubles
+# the latency, and can fail the same way again).
+#
+# "Distinctive" is three filters, each of which earned its place against the 34
+# recorded answers in evals/ask-answers.json:
+#
+#   * at least EVIDENCE_MIN_LEN characters. Below that the matches are function
+#     words the corpus happens to contain: the injection refusal g34 ("I can only
+#     discuss Jerry's portfolio work") matched a chunk on {"not", "only"} until
+#     this filter went in, which is a chip under an answer that used no source.
+#   * not a word of the question. The visitor supplied those, so repeating them is
+#     not evidence of having read anything. This filter is what keeps a bare
+#     refusal ("his portfolio does not cover freelance rates") at zero chips.
+#   * not a house word of this corpus, i.e. present in more than EVIDENCE_COMMON_DF
+#     of the chunks. Every entry carries "Project", "Role", "Category", "2024".
+#
+# Two limits, both failing towards silence rather than towards a wrong chip. A
+# Chinese answer over this English corpus shares almost no tokens with it, so
+# recovery there catches only latin technology names — Chinese is covered by the
+# prompt rule, not by this. And if the corpus text cannot be read at load time the
+# house words are unknown, so recovery switches off entirely rather than run with
+# every "the" counted as evidence.
+
+EVIDENCE_MIN_LEN = 4
+EVIDENCE_MIN_TERMS = 2
+EVIDENCE_COMMON_DF = 0.4
+
+# Token, not word: `three.js`, `shadcn/ui`, `esp32`, `c++` and `role-based` have to
+# survive whole, because those are exactly the terms that identify a source.
+_EVIDENCE_TERM_RE = re.compile(r"[a-z0-9][a-z0-9+#._/-]*")
+
+
+def evidence_terms(text: str) -> set[str]:
+    """Lowercased tokens of the text, long enough to carry meaning on their own."""
+    return {
+        term
+        for term in (m.group(0).strip("._-/")
+                     for m in _EVIDENCE_TERM_RE.finditer(text.lower()))
+        if len(term) >= EVIDENCE_MIN_LEN
+    }
+
+
+def house_terms(documents: list[str]) -> frozenset[str]:
+    """Terms so common in the corpus that sharing one says nothing about sourcing."""
+    counts: dict[str, int] = {}
+    for document in documents:
+        for term in evidence_terms(document):
+            counts[term] = counts.get(term, 0) + 1
+    ceiling = EVIDENCE_COMMON_DF * len(documents)
+    return frozenset(term for term, count in counts.items() if count > ceiling)
+
+
+def recover_citations(answer: str, question: str, hits: list[dict]) -> list[str]:
+    """Retrieved ids whose own wording the answer reuses, in retrieval order."""
+    if INDEX.house_terms is None:
+        return []                       # corpus text unreadable: stay silent, not wrong
+    stated = evidence_terms(answer) - evidence_terms(question) - INDEX.house_terms
+    if not stated:
+        return []                       # nothing in the answer came from anywhere
+    return [
+        hit["id"] for hit in hits
+        if len(stated & evidence_terms(hit["document"])) >= EVIDENCE_MIN_TERMS
+    ]
+
+
 # --- index + static data ----------------------------------------------------
 
 class _Index:
@@ -383,6 +465,10 @@ class _Index:
         self.nodes: dict[str, dict] = {}
         self.related: dict[str, list] = {}
         self.collection = None
+        # None means "unknown", which disables citation recovery (see above). It is
+        # deliberately not the same state as the empty set, which would mean "this
+        # corpus has no house words" and would let `the` count as evidence.
+        self.house_terms: Optional[frozenset[str]] = None
         self.error: Optional[str] = None
         self.load()
 
@@ -402,6 +488,20 @@ class _Index:
             self.collection = client.get_collection(COLLECTION, embedding_function=None)
         except Exception as exc:
             self.error = f"chroma collection unavailable: {exc}"
+            return
+        try:
+            # The chunk text the retriever will hand to the model, read once so
+            # citation recovery knows which words are this corpus's boilerplate.
+            # `include=["documents"]` leaves the 3072-d vectors out of the payload;
+            # this is 15 short strings and runs on every cold start, so it has to
+            # stay that cheap. Failure is swallowed on purpose: recovery turns off
+            # (house_terms stays None) and nothing else about the service changes,
+            # while surfacing it in /health would mean adding a field to a response
+            # shape the frontend is coded against.
+            got = self.collection.get(include=["documents"])
+            self.house_terms = house_terms([d for d in got["documents"] if d])
+        except Exception:
+            self.house_terms = None
 
     @property
     def ready(self) -> bool:
@@ -594,6 +694,20 @@ def related(item_id: str) -> RelatedResponse:
 #    for a bullet list, so the no-markdown clause was pulled out of the length
 #    bullet it used to share and given its own line. The frontend escapes the
 #    answer into a single <p>; emitted markdown renders as literal asterisks.
+# 4. The partial-answer rule and "cited_ids ... empty when you could not answer"
+#    contradicted each other, and the model resolved the contradiction the wrong
+#    way. A partial answer is both an answer and a not-answer, so returning no
+#    citations reads as compliant: measured over three samples of "List every
+#    programming language he has used, and how many years of experience he has
+#    with each", only 1 carried citations, and one of the other two stated real
+#    portfolio specifics — Python, React, TypeScript — with `cited_ids: []`. The
+#    page draws no source chips for an empty list, so what the visitor gets is
+#    confident prose with nothing behind it, which is exactly what a grounded
+#    answer feature exists to prevent. The emptiness condition is therefore no
+#    longer about whether the question was answered; it is about whether the
+#    answer contains anything that came from the context. Recovering from this in
+#    the prompt alone would still be a request, so it also has a deterministic
+#    net in code — see the citation-recovery block near _Index.
 ASK_SYSTEM = """You answer questions about the portfolio of Zhengrui (Jerry) Hao, \
 a designer-engineer working on HCI, wearables and interactive systems.
 
@@ -617,7 +731,12 @@ Rules:
 - No markdown at all: no headings, no bullet lists, no ** bold **.
 - Output ONE JSON object and absolutely nothing else — no prose before or after it:
   {"answer": "<your answer>", "cited_ids": ["<id of each context entry you used>"]}
-  cited_ids must be a subset of the context ids, and empty when you could not answer."""
+  cited_ids must be a subset of the context ids, and must name every entry your
+  answer took anything from — including the entries behind the answered half of a
+  partial answer, and including any adjacent fact you offer while saying something
+  is not covered. A partial answer is not an unanswered question: it cites. Leave
+  cited_ids empty only when the answer states nothing that came from the context
+  at all, such as a bare "his portfolio does not cover this" or a decline."""
 
 
 def _parse_answer(text: str) -> tuple[str, list[str]]:
@@ -689,6 +808,11 @@ def ask(req: AskRequest) -> AskResponse | JSONResponse:
     answer, cited_ids = _parse_answer(raw)
 
     retrieved = {h["id"]: h["title"] for h in hits}
-    citations = [Citation(id=i, title=retrieved[i]) for i in dict.fromkeys(cited_ids)
-                 if i in retrieved]
-    return AskResponse(answer=answer, citations=citations)
+    cited = [i for i in dict.fromkeys(cited_ids) if i in retrieved]
+    if not cited:
+        # Nothing usable came back: either the model reported no sources, or every
+        # id it reported was one we never retrieved. Both leave the visitor on the
+        # same page — prose with no chips under it — so both get the same net.
+        cited = recover_citations(answer, req.question, hits)
+    return AskResponse(answer=answer,
+                       citations=[Citation(id=i, title=retrieved[i]) for i in cited])

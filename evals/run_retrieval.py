@@ -184,7 +184,9 @@ def write_report(rows: list[dict], refusals: list[dict], titles: dict[str, str],
         lines.append(f"| {key} | {overall[key]:.4f} |")
 
     lines += ["", "## By category", "", "| category | n | hit@3 | hit@5 | MRR |", "| --- | --- | --- | --- | --- |"]
-    for group in ("direct", "cross"):
+    # `partial` entries are answerable-but-only-half: they carry ground truth like
+    # any other scorable row, and they were invisible here until one existed.
+    for group in ("direct", "cross", "partial"):
         subset = [r for r in rows if r["entry"].get("category") == group]
         if subset:
             lines.append(
