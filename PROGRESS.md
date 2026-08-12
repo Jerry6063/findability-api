@@ -875,3 +875,167 @@ hit@3 0.9286、MRR 0.9107),本次一并更正到 36 条 / 30 条与当前检索�
       检索缺口**(hit@3/@5 看不见它,因为它们只问"有没有召回到任一 expected")。
       要不要为这类跨多个项目的枚举型问题加指标,待定。
 - [ ] Fly 仍未重新部署,线上跑的还是 `0a61c0d` 之前的镜像。
+
+## 2026-08-11(二)修两件量具:partial 的标注口径,与 context_precision
+
+上一节末尾的待办里写着"拒答矩阵需要第三格",并且注明"改之前先想清楚:这是修量具,
+不是修数字"。这一节就是那件事,外加一件同类的:`context_precision` 在多来源问题上
+的 0.000。**两件都在测量端,服务侧一个字节没动**,四项指标均值逐位不变
+(0.8092 / 0.7231 / 0.7611 / 0.9611)。
+
+### 开销:0 次 `/ask`
+
+- 全程 `--answers-from evals/ask-answers.json`,**没有重新作答**。跑之前线上
+  `/health` 是 `asks_today: 8`,跑完还是 `8`——本轮所有调用都在本机容器里,
+  且只调判官,不调 `/ask`。
+- 新加的 `--reuse-metrics` 让这一轮**连 Ragas 都没跑**:四项指标直接从
+  `ask-answers.json` 里已经落盘的逐条值重算均值。理由写在 flag 的 help 里:
+  上一节实测过 faithfulness 同配置重跑能摆动 0.83(g24),**改标注器却让指标动,
+  那是在污染证据**。
+- 实际花费:36 次 Haiku 标注 + 若干次诊断/验证调用,合计**远低于 $0.1**。
+
+### 缺陷一:`REFUSAL_PROMPT` 把 partial 判成 refused
+
+病灶就是上一节逐字引过的那句:"A reply that declines and then adds one grounded
+fact it does have is still REFUSED"。partial 答案的表面形状**逐字命中**这条规则。
+
+三个候选方案(题面给的),逐个说为什么选了第三个:
+
+**方案 A:给判官加第三个标签(refused / partial / answered)。做了,跑了,否掉了。**
+这不是推理否掉的,是实测否掉的。写了一版三值提示词,把 PARTIAL 定义成"答出被语料
+支持的那部分 + 明说其余没有",并保留原来那句 REFUSED 兜底的意图(只在"补的那个事实
+只是邻近、不构成对问题任一部分的回答"时才算 REFUSED)。对 36 条重跑,结果:
+
+| id | 类别 | 二值判官 | 三值判官 |
+| --- | --- | --- | --- |
+| g35 / g36 | partial | refused | **partial** ✓ 想要的 |
+| g16 / g20 | direct | answered | **partial** ✗ |
+| g25 | cross | answered | **partial** ✗ |
+| g30 / g32 | **refusal** | refused | **partial** ✗ |
+
+**它动了 34 条里的 5 条,其中 2 条是拒答**——6/6 直接掉成 4/6。换一个标签集,
+把本来标对的条目标错了。而且 g30 / g32 那两条不是判官犯蠢:g30 问"有卖吗?多少钱?"
+答案先说"是研究原型,目前没有销售",再说"作品集没提定价";g32 先说"作品集没有
+Unity/Unreal",再补投影装置。**这两条的表面形状和 partial 真的难以区分**,
+继续调提示词直到 34 条全对,那就是拿提示词去凑已知答案——和为了指标改服务同类。
+
+**方案 B:按类别改提示词。**同样要改判官看那 34 条时的行为(或者需要按类别分支),
+一样得重新验 34 条。而 A 的实测已经说明:**这个判官在这条边界上不可靠**。
+
+**方案 C(选定):二值判官原样不动,partial 不进那张矩阵,另配一件量具。**
+
+- `REFUSAL_PROMPT` **一个字节没改**。所以拒答矩阵那两格 6/6 与 0/28
+  **按构造就不会变**,并且实测确认:34 条二值标签 **移动 0 条**。
+- partial 的判定不该由判官去重新发现,因为**它本来就是已知的**:g35/g36 有
+  `expected_citations`(语料支持其中一部分),g29–g34 没有。这是 golden set 里的
+  真值,和 `should_refuse` 用的是同一个来源。
+- 报告里 partial 单列一节,量的是这个类别真正要测的性质:**答出被支持的那半,
+  并且明说另一半没有,两边都要有**。
+
+### partial 检查本身也踩了一个坑,值得记
+
+第一版让判官回一个词(BOTH / MISSING)。**g35 连跑三次都是 MISSING,而它是对的答案。**
+把同一套 rubric、同一个判官、只是允许它多写一句理由,它给的是 **BOTH**,理由还写得
+完全正确("列了 Python / React 19 / JavaScript / Django-DRF,并明说没有年限")。
+
+**一个取决于"允不允许模型思考"的标签不是标签。**所以最终版把两半拆开问,
+判定在 Python 里合成,不由模型吐:
+
+```
+ANSWERED_PART: yes/no   # 有没有用具体的作品集事实回答了被问到的一部分
+STATED_GAP:    yes/no   # 有没有明说被问到的某一部分作品集里没有
+BOTH = ANSWERED_PART and STATED_GAP
+```
+
+**双向验过,不是只验它通过想让它通过的那两条:**
+
+| 条目 | 期望 | ANSWERED_PART / STATED_GAP | 3 次重复 |
+| --- | --- | --- | --- |
+| g35 / g36(partial) | BOTH | yes / yes | 3/3 稳定 ✓ |
+| g29 / g34(纯拒答) | 失败 | **no** / yes | 3/3 稳定 ✓ |
+| g01 / g20(普通作答) | 失败 | yes / **no** | 3/3 稳定 ✓ |
+
+两类对照**分别栽在相反的那一半上**——这正是一件能区分的量具该有的样子。
+最终结果:partial **2/2**,拒答矩阵 **6/6 与 0/28,与改之前逐位相同**。
+
+### 缺陷二:`context_precision` 在多来源问题上恒等于 0.000
+
+上一节只观察到了现象(cross 7 条里 5 条 0.000)。这次查清了机制,**并且在隔离环境里
+复现了**。
+
+`ragas 0.2.15` 的 `ContextPrecision` 是 `LLMContextPrecisionWithReference`:对
+**每一个**检索到的 chunk 单独问判官一句 "was the context useful in arriving at the
+given answer",而这里的 `answer` 喂进去的是**整条 golden reference**;再把 0/1 判决
+按 Average Precision 合成,`numerator / (sum(verdicts) + 1e-10)`。
+
+所以只要全部判决是 0,分数就是精确的 **0.000**。
+
+**隔离复现(g26,判官逐条的 reason 原文):**
+
+- g26 检索到的**前两个 chunk 就是它的两个 expected id**(`floralink`、`heartwhisper`),
+  5 条判决**全是 0**。
+- `floralink` 那条的理由:"...the answer mentions two projects: FloraLink and
+  HeartWhisper. The context does not contain any information about HeartWhisper...
+  it was insufficient for providing complete information about both projects"
+- `heartwhisper` 那条对称:"...The context does not contain any information about
+  FloraLink, making it impossible to verify the complete answer."
+
+**判官执行的是"这一个 chunk 够不够推出整条 reference"(充分性),不是指标定义的
+"这一个 chunk 有没有用"(有用性)。**而 cross 类问题的 reference 按定义就是 N 个项目的
+汇总,单个 chunk **永远**不可能充分 → 全 0 → 0.000。它的少样例里全是
+"England"、"Mount Everest." 这种单事实答案,从没见过汇总型 reference。
+
+**决定性对照:同问题、同 chunk,只把 reference 裁成这个 chunk 覆盖的那一半:**
+
+| 条目 | chunk | 整条 reference | 裁半后 |
+| --- | --- | --- | --- |
+| g26 | floralink | 0 | **1** |
+| g26 | heartwhisper | 0 | **1** |
+| g24 | social-rhythm | 0 | **1** |
+| g24 | spatial-pixel-lab | 0 | **1** |
+
+**4/4 全翻。检索一个字节没变。**
+
+按"reference 汇总了几个来源"分组,这个指标是这样分布的:
+
+| reference 汇总 | n | ctx.prec. 均值 | 恰好 0.000 的条数 |
+| --- | --- | --- | --- |
+| 单来源 | 21 | 0.9683 | 0 |
+| 两个及以上 | 9 | 0.2778 | 6 |
+
+而且它和检索质量是**反着走**的:`g36` 5 个检索里 4 个是 expected,得 0.000;
+`g35` 4 个 expected 只召回 1 个(上一节记的那个真实检索缺口),反而得 **1.000**。
+
+**结论:这不是喂法的 bug。**我们喂的 `user_input` / `retrieved_contexts` /
+`reference` 正是 `LLMContextPrecisionWithReference` 声明要的三样,没有任何一样是畸形的。
+所以**没有去"修喂法"**——真要把这个数字弄到 1.000,只需要去改 `golden.jsonl` 里的
+reference,服务一个字节不动。**一个靠改 golden 文件就能从 0.000 拉到 1.000 的数字,
+量的不是服务。**
+
+按本仓库对 faithfulness 的既定做法处理:**照报,但明写不可信,不进 CI,不作为改动目标。**
+`report-ragas.md` 里新增了一节 "Why `context_precision` collapses on multi-source
+questions",带上面那张分组表和"检索找到了 expected 却仍得 0.000"的逐条清单——
+**这个数字以后不会再单独出现在报告里而没有旁注**。README 也补了对应的一段。
+
+### 08-10 那个被证伪的预测:仍然留在原处
+
+上一节已经记过:08-10 预测 partial "算 answered",实测是**相反的 refused**。
+这一节不改动那两处旧文,只补一句:**方向写反了这件事本身是有信息量的**——
+正是"partial 会被算成 refused"这个反直觉的方向,暴露了 `REFUSAL_PROMPT` 里那句
+兜底规则,而如果当初预测对了(算 answered),那 2/30 根本不会出现,这件量具的缺陷
+也就不会在这一轮被抓到。**错误的预测比整洁的文件值钱。**
+
+### 检索与 CI:未受影响
+
+`python evals/ci_retrieval.py` **exit 0**:corpus 15 chunks · golden 36 条
+(30 条可评分)· hit@3 **0.9333**(floor 0.85)/ hit@5 **1.0000**(floor 0.95)/
+MRR **0.9000**(floor 0.85)。本轮只动 `evals/run_ragas.py` 与它的产物,
+`chroma/` 无改动(没有重新摄取)。
+
+### 待办
+
+- [x] 拒答矩阵的第三格(改成:partial 出矩阵 + 单列的双向检查)
+- [ ] g35 的检索只召回 4 个 expected 里的 1 个,**依然没修**。这一轮反而给了它
+      一个新旁证:`context_precision` 在它身上给了 1.000。枚举型跨项目问句要不要
+      单独加指标,仍然待定。
+- [ ] Fly 仍未重新部署,线上跑的还是 `0a61c0d` 之前的镜像。

@@ -12,10 +12,17 @@ Two things this does that a stock Ragas script does not:
    the ones the model actually saw — not a second retrieval that might drift.
 2. **Refusals are scored as a classification problem, in both directions.** The
    six out-of-corpus questions are not run through the four metrics (there is no
-   reference answer to be faithful to). Instead every one of the 30 answers is
-   classified refused/answered by the judge, giving a confusion matrix: a system
-   that refuses everything would look perfect on "refusal accuracy" alone, and
-   this catches that.
+   reference answer to be faithful to). Instead they and the fully-answerable
+   entries are classified refused/answered by the judge, giving a confusion
+   matrix: a system that refuses everything would look perfect on "refusal
+   accuracy" alone, and this catches that.
+3. **`partial` entries are measured by a different instrument, not by that one.**
+   A `partial` golden entry asks for several things at once where the corpus
+   carries some and not the rest, and the correct reply answers the supported half
+   and names the missing half. Both binary labels are wrong for that shape; the
+   binary judge called it REFUSED and printed it as a false refusal
+   (PROGRESS.md, 2026-08-11). Those entries now go through a two-sided check of
+   their own and the refusal matrix is left to the populations it can label.
 
 Judge and embeddings reuse the keys the service already has — no new accounts.
 
@@ -23,6 +30,8 @@ Usage (inside the eval container, repo root mounted at /app):
     python evals/run_ragas.py                    # full run
     python evals/run_ragas.py --limit 3          # smoke test
     python evals/run_ragas.py --answers-from FILE  # rescore without re-answering
+    python evals/run_ragas.py --answers-from FILE --reuse-metrics
+                                                 # relabel + re-render only
 """
 
 from __future__ import annotations
@@ -62,6 +71,15 @@ The context is assembled from portfolio entries that encode facts as terse label
 
 Judge every statement against the ENTIRE context given to you, not only the part that looks most related to the question. The context may contain several entries; a statement supported by any of them is supported."""
 
+METRIC_NAMES = ("faithfulness", "answer_relevancy", "context_precision", "context_recall")
+
+# Deliberately unchanged, byte for byte, from the run that produced the 6/6 and
+# 0/28 figures. Its clause "a reply that declines and then adds one grounded fact it
+# does have is still REFUSED" is what makes it wrong on `partial` entries — a partial
+# answer has exactly that surface shape — so `partial` entries are no longer sent
+# through it at all (see PARTIAL_PROMPT and PROGRESS.md, 2026-08-11 instrument-fix
+# section). On the two populations it *can* label, refusal and fully-answerable, it
+# stays as it was, so those cells of the matrix remain comparable across runs.
 REFUSAL_PROMPT = """You are labelling the output of a portfolio Q&A service.
 
 The service is only allowed to answer from a fixed corpus about one designer. When
@@ -80,6 +98,44 @@ QUESTION: {question}
 REPLY: {answer}
 
 One word:"""
+
+# Applied ONLY to golden entries whose category is `partial` — questions that ask for
+# several things at once where the corpus carries some and not the rest. Refusing and
+# answering are both wrong there, so the binary judge above has no label that fits;
+# this asks the two-sided question the category actually poses.
+#
+# The prompt states the category's premise (the corpus covers part of this question)
+# because that premise is ground truth from golden.jsonl, not a verdict. It does not
+# say which part, and failure is reachable in both directions: a reply that declines
+# outright fails the first half, and one that answers without flagging the gap fails
+# the second.
+#
+# The two halves are asked separately and the verdict is composed in Python rather
+# than emitted by the model. That is not decoration either: asked for a single
+# BOTH/MISSING token, this judge returned MISSING on g35 three times out of three,
+# and the same judge on the same rubric returned BOTH with correct reasoning the
+# moment it had somewhere to put the reasoning. A label that flips on whether the
+# model is allowed to think is not a label; splitting it removes the snap judgement
+# and makes both halves auditable in the answers file.
+PARTIAL_PROMPT = """You are checking two specific properties of a reply from a
+portfolio Q&A service.
+
+The service answers only from a fixed corpus about one designer. The question below
+asks for several things at once, and the corpus carries some of them but not the rest.
+A correct reply does two things: it answers the part the corpus supports, naming
+concrete portfolio facts, and it states plainly that the remaining part is not in the
+portfolio.
+
+QUESTION: {question}
+
+REPLY: {answer}
+
+Answer in exactly two lines, nothing else:
+
+ANSWERED_PART: yes or no — does the reply name concrete portfolio facts (projects,
+roles, tools, counts, dates) that answer part of what was asked?
+STATED_GAP: yes or no — does the reply say that some part of what was asked is not
+in the portfolio?"""
 
 
 # ---------------------------------------------------------------- embeddings
@@ -209,14 +265,54 @@ def build_judge():
                          timeout=120, stop=None)
 
 
-def classify_refusals(judge, results: list[dict]) -> None:
-    """Label every answer refused/answered — both error directions matter."""
+def expected_outcome(entry: dict) -> str:
+    """What the golden set says the right shape of reply is.
+
+    Ground truth, read off golden.jsonl — never shown to the judge.
+    """
+    if not entry["expected_citations"]:
+        return "refused"
+    return "partial" if entry.get("category") == "partial" else "answered"
+
+
+def partial_halves(reply: str) -> dict:
+    """Parse the two-line partial check. Verdict is composed here, not by the model."""
+    halves = {"answered_part": False, "stated_gap": False}
+    for line in reply.splitlines():
+        for key, marker in (("answered_part", "ANSWERED_PART"), ("stated_gap", "STATED_GAP")):
+            if line.strip().startswith(marker):
+                halves[key] = line.split(":", 1)[-1].strip().startswith("YES")
+    return halves
+
+
+def classify_outcomes(judge, results: list[dict]) -> None:
+    """Label every answer with the instrument that can actually label it.
+
+    Refusal and fully-answerable entries go through the unchanged binary judge.
+    `partial` entries go through the two-sided partial check instead: a binary
+    refused/answered verdict on a partial answer is not a measurement of the
+    service, it is an artefact of the label set.
+    """
     for r in results:
-        verdict = judge.invoke(
-            REFUSAL_PROMPT.format(question=r["question"], answer=r["answer"])
-        ).content.strip().upper()
-        r["refused"] = verdict.startswith("REFUS")
-        r["should_refuse"] = not r["expected_citations"]
+        r["expected_outcome"] = expected_outcome(r)
+        r["should_refuse"] = r["expected_outcome"] == "refused"
+
+        if r["expected_outcome"] == "partial":
+            reply = judge.invoke(
+                PARTIAL_PROMPT.format(question=r["question"], answer=r["answer"])
+            ).content.upper()
+            halves = partial_halves(reply)
+            r["partial_check"] = halves
+            r["answered_in_part"] = halves["answered_part"] and halves["stated_gap"]
+            r["refused"] = None          # the binary judge is not run on these
+            r["outcome"] = "partial" if r["answered_in_part"] else "not-partial"
+        else:
+            verdict = judge.invoke(
+                REFUSAL_PROMPT.format(question=r["question"], answer=r["answer"])
+            ).content.strip().upper()
+            r["refused"] = verdict.startswith("REFUS")
+            r["answered_in_part"] = None
+            r["outcome"] = "refused" if r["refused"] else "answered"
 
 
 def score_with_ragas(judge, results: list[dict]) -> dict:
@@ -256,26 +352,107 @@ def score_with_ragas(judge, results: list[dict]) -> dict:
 
     frame = scores.to_pandas()
     for r, (_, row) in zip(answerable, frame.iterrows()):
-        for metric in ("faithfulness", "answer_relevancy", "context_precision", "context_recall"):
+        for metric in METRIC_NAMES:
             value = row.get(metric)
             r[metric] = None if value is None or (isinstance(value, float) and math.isnan(value)) else float(value)
+
+    return means_from(results)
+
+
+def means_from(results: list[dict]) -> dict:
+    """Per-metric means over the answerable entries, from values already on the rows."""
+    answerable = [r for r in results if r["expected_citations"]]
 
     def mean_of(metric: str) -> float:
         values = [r[metric] for r in answerable if r.get(metric) is not None]
         return sum(values) / len(values) if values else float("nan")
 
-    return {m: mean_of(m) for m in
-            ("faithfulness", "answer_relevancy", "context_precision", "context_recall")}
+    return {m: mean_of(m) for m in METRIC_NAMES}
 
 
 # ---------------------------------------------------------------- report
 
+CONTEXT_PRECISION_NOTE = """\
+`context_precision` is printed for continuity and **is not read as a retrieval
+signal on this corpus** — the mechanism is below, under "Why `context_precision`
+collapses on multi-source questions". `faithfulness` is not a valid gate here
+either (PROGRESS.md, Stage E). The two metrics that survived audit are
+`answer_relevancy` and `context_recall`; the deterministic retrieval metrics in
+`report-retrieval.md` are what CI actually gates on."""
+
+
+def context_precision_section(results: list[dict]) -> list[str]:
+    """Break context_precision out by how many sources the reference aggregates.
+
+    Computed from the data rather than hard-coded, so it stays honest if the
+    golden set changes.
+    """
+    scored = [r for r in results
+              if r["expected_citations"] and r.get("context_precision") is not None]
+    if not scored:
+        return []
+
+    groups = {
+        "one expected source": [r for r in scored if len(r["expected_citations"]) == 1],
+        "two or more expected sources": [r for r in scored if len(r["expected_citations"]) > 1],
+    }
+
+    lines = [
+        "",
+        "## Why `context_precision` collapses on multi-source questions",
+        "",
+        "Ragas asks its judge, once per retrieved chunk, whether that chunk \"was useful "
+        "in arriving at the given answer\" — where the answer it is shown is the **whole** "
+        "golden reference. When the reference aggregates several projects, no single "
+        "chunk supports the whole of it, the judge votes 0 on every chunk, and average "
+        "precision is `0 / (0 + 1e-10)` = exactly 0.000. The verdict is driven by the "
+        "shape of the reference, not by whether retrieval was right.",
+        "",
+        "| reference aggregates | n | mean ctx.prec. | entries at exactly 0.000 |",
+        "| --- | --- | --- | --- |",
+    ]
+    for label, subset in groups.items():
+        if not subset:
+            continue
+        mean = sum(r["context_precision"] for r in subset) / len(subset)
+        zeros = sum(1 for r in subset if r["context_precision"] < 1e-6)
+        lines.append(f"| {label} | {len(subset)} | {mean:.4f} | {zeros} |")
+
+    worst = [r for r in scored
+             if r["context_precision"] < 1e-6 and set(r["expected_citations"]) & set(r["context_ids"])]
+    if worst:
+        lines += [
+            "",
+            "Entries scoring 0.000 while retrieval actually found expected chunks:",
+            "",
+        ]
+        for r in sorted(worst, key=lambda r: r["id"]):
+            found = [c for c in r["context_ids"] if c in r["expected_citations"]]
+            lines.append(
+                f"- `{r['id']}` ({r['category']}) — retrieved {len(found)} of "
+                f"{len(r['expected_citations'])} expected ids "
+                f"(`{', '.join(found)}`) and still scores 0.000."
+            )
+    lines += [
+        "",
+        "Verified in isolation against the same judge: replaying a 0.000 entry chunk by "
+        "chunk and trimming the reference to the half each chunk covers flips every "
+        "verdict from 0 to 1, with the retrieval byte-identical. A number that can be "
+        "moved from 0.000 to 1.000 by editing `golden.jsonl` alone is not measuring the "
+        "service.",
+    ]
+    return lines
+
+
 def write_report(results: list[dict], means: dict) -> None:
     answerable = [r for r in results if r["expected_citations"]]
-    refusal = [r for r in results if not r["expected_citations"]]
+    refusal = [r for r in results if r["expected_outcome"] == "refused"]
+    partial = [r for r in results if r["expected_outcome"] == "partial"]
+    full_answer = [r for r in results if r["expected_outcome"] == "answered"]
 
     correctly_refused = sum(1 for r in refusal if r["refused"])
-    wrongly_refused = sum(1 for r in answerable if r["refused"])
+    wrongly_refused = sum(1 for r in full_answer if r["refused"])
+    partial_ok = sum(1 for r in partial if r["answered_in_part"])
 
     lines = [
         "# Ragas report — findability-api `/ask`",
@@ -285,8 +462,9 @@ def write_report(results: list[dict], means: dict) -> None:
         "indexed with. Both reuse keys the service already holds — no new accounts.",
         "",
         f"Samples: {len(answerable)} answerable golden entries scored on the four metrics; "
-        f"all {len(results)} answers (including {len(refusal)} out-of-corpus questions) "
-        "classified refused/answered.",
+        f"{len(refusal) + len(full_answer)} answers (including {len(refusal)} out-of-corpus "
+        f"questions) classified refused/answered, and {len(partial)} `partial` entries "
+        "checked separately.",
         "",
         "## Metric means (answerable entries)",
         "",
@@ -295,26 +473,51 @@ def write_report(results: list[dict], means: dict) -> None:
     ]
     for metric, value in means.items():
         lines.append(f"| {metric} | {value:.4f} |")
+    lines += ["", CONTEXT_PRECISION_NOTE]
 
     def pct(numerator: int, denominator: int) -> str:
         return f"{numerator}/{denominator} = {numerator / denominator:.1%}" if denominator else "n/a"
 
-    lines += [f"", f"## Refusal behaviour (all {len(results)} entries)", "",
+    lines += [f"", f"## Refusal behaviour ({len(refusal) + len(full_answer)} of "
+              f"{len(results)} entries)", "",
               "Measured in both directions on purpose: a service that refuses everything "
               "would score 100% on \"did it refuse the out-of-corpus questions\" alone.",
               "",
+              f"The {len(partial)} `partial` entries are **not** in this table. They ask for "
+              "several things at once where the corpus carries some and not the rest, so "
+              "both binary labels are wrong for them; folding them in is what made this "
+              "report print a 6.7% false-refusal rate on 2026-08-11 while the service had "
+              "in fact refused nothing it could answer. They are measured below instead.",
+              "",
               "| | refused | answered |", "| --- | --- | --- |",
               f"| **should refuse** ({len(refusal)}) | {correctly_refused} | {len(refusal) - correctly_refused} |",
-              f"| **should answer** ({len(answerable)}) | {wrongly_refused} | {len(answerable) - wrongly_refused} |",
+              f"| **should answer** ({len(full_answer)}) | {wrongly_refused} | {len(full_answer) - wrongly_refused} |",
               "",
               f"- Refusal accuracy (out-of-corpus correctly declined): "
               f"**{pct(correctly_refused, len(refusal))}**",
-              f"- False-refusal rate (answerable wrongly declined): "
-              f"**{pct(wrongly_refused, len(answerable))}**",
+              f"- False-refusal rate (fully-answerable wrongly declined): "
+              f"**{pct(wrongly_refused, len(full_answer))}**",
               f"- Citations on refusals: "
               f"{pct(sum(1 for r in refusal if not r['citations']), len(refusal))} returned none "
               "(an unsourced refusal is the correct shape).",
               ]
+
+    if partial:
+        lines += ["", f"## Partial answers ({len(partial)} entries)", "",
+                  "A separate two-sided check, not a third value in the matrix above: does the "
+                  "reply answer the part the corpus supports **and** state that the rest is not "
+                  "in the portfolio? Failing either half fails the check.",
+                  "",
+                  f"- Answered in part and flagged the gap: **{pct(partial_ok, len(partial))}**",
+                  ""]
+        for r in partial:
+            lines.append(
+                f"- `{r['id']}` ({r['lang']}) — "
+                f"{'both halves present' if r['answered_in_part'] else '**MISSING a half**'}; "
+                f"cited `{', '.join(r['citations']) or 'none'}`"
+            )
+
+    lines += context_precision_section(results)
 
     scored = [r for r in answerable if r.get("faithfulness") is not None]
     worst = sorted(scored, key=lambda r: (
@@ -339,16 +542,17 @@ def write_report(results: list[dict], means: dict) -> None:
             ]
 
     lines += ["", "## Per entry", "",
-              "| id | cat | lang | faith. | ans.rel. | ctx.prec. | ctx.rec. | refused | cited |",
-              "| --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
+              "| id | cat | lang | faith. | ans.rel. | ctx.prec. | ctx.rec. | outcome | expected | cited |",
+              "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |"]
     for r in results:
         def fmt(metric: str) -> str:
             value = r.get(metric)
             return "—" if value is None else f"{value:.3f}"
+        mark = "" if r["outcome"] == r["expected_outcome"] else " **✗**"
         lines.append(
             f"| {r['id']} | {r['category']} | {r['lang']} | {fmt('faithfulness')} | "
             f"{fmt('answer_relevancy')} | {fmt('context_precision')} | {fmt('context_recall')} | "
-            f"{'yes' if r.get('refused') else 'no'} | {', '.join(r['citations']) or '—'} |"
+            f"{r['outcome']}{mark} | {r['expected_outcome']} | {', '.join(r['citations']) or '—'} |"
         )
 
     REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -363,6 +567,13 @@ def main() -> None:
                         help="reuse a previous ask-answers.json instead of re-answering")
     parser.add_argument("--corpus-aware-judge", action="store_true",
                         help="append corpus-format guidance to Ragas' NLI instruction")
+    parser.add_argument("--reuse-metrics", action="store_true",
+                        help="skip the Ragas call and take the four per-entry metric "
+                             "values already stored in the answers file. For changes "
+                             "that only touch the outcome labeller or the report: "
+                             "re-running Ragas would swing faithfulness by judge noise "
+                             "alone (±0.8 on a single entry, PROGRESS.md 2026-08-11) and "
+                             "move numbers the change is not supposed to touch.")
     parser.add_argument("--tag", default="",
                         help="suffix for the output files, so a second judge does not "
                              "overwrite the first run's report")
@@ -385,12 +596,23 @@ def main() -> None:
         ANSWERS.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
         print(f"wrote {ANSWERS.name}", file=sys.stderr)
 
-    judge = build_judge()
-    print("classifying refusals…", file=sys.stderr)
-    classify_refusals(judge, results)
+    if args.reuse_metrics and not args.answers_from:
+        sys.exit("--reuse-metrics only makes sense with --answers-from")
 
-    print("scoring with Ragas…", file=sys.stderr)
-    means = score_with_ragas(judge, results)
+    judge = build_judge()
+    print("labelling answer outcomes…", file=sys.stderr)
+    classify_outcomes(judge, results)
+
+    if args.reuse_metrics:
+        missing = [r["id"] for r in results
+                   if r["expected_citations"] and r.get("faithfulness") is None]
+        if missing:
+            sys.exit(f"--reuse-metrics: no stored metrics for {', '.join(missing)}")
+        print("reusing stored Ragas metrics (no metric calls)", file=sys.stderr)
+        means = means_from(results)
+    else:
+        print("scoring with Ragas…", file=sys.stderr)
+        means = score_with_ragas(judge, results)
 
     ANSWERS.write_text(json.dumps(results, ensure_ascii=False, indent=1), encoding="utf-8")
     write_report(results, means)

@@ -49,14 +49,17 @@ citation-guarantee re-run); the short version:
 | cross-lingual (Chinese questions, English corpus) hit@3 | 1.0000 |
 | refusal accuracy (out-of-corpus correctly declined) | 6/6 |
 | false-refusal rate (fully-answerable wrongly declined) | 0/28 |
+| partial answers giving the supported half and flagging the gap | 2/2 |
 | answerable entries carrying at least one citation | 30/30 |
 | `/ask` answer length (mean, 36 real calls) | 33.7 words / 1.86 sentences |
 
 The false-refusal denominator is 28, not 30, on purpose: the two `partial` entries
-answer one half of a question and decline the other, and the refusal judge emits a
-binary refused/answered label that cannot represent that. Both were read by hand and
-both answer their answerable half correctly. Read PROGRESS.md (2026-08-11) before
-quoting the generated report's `2/30` figure.
+answer one half of a question and decline the other, and a binary refused/answered
+label cannot represent that. They used to be folded into the matrix anyway and printed
+as a 6.7% false-refusal rate that measured the labeller rather than the service. They
+now go through a two-sided check of their own — did the reply supply the half the
+corpus supports *and* say the rest is missing — and the matrix covers the 34 entries
+it can label. See PROGRESS.md, the two 2026-08-11 sections.
 
 ```
 python evals/run_retrieval.py     # metrics + regenerate the CI vector cache
@@ -70,11 +73,22 @@ python evals/trace_ask.py         # send traced calls to a local Phoenix
 costs nothing. It also fails when the golden set and its cached embeddings drift
 apart.
 
-One finding worth flagging before you trust the Ragas numbers: **faithfulness is
-not a valid gate on this corpus.** A three-perspective manual audit put the true
-figure at 0.968 where the judge reported 0.52 — the metric penalises natural-language
-restatements of terse `Credits — …` metadata lines. A stronger judge made it *worse*,
-not better. See PROGRESS.md Stage E.
+Two findings worth flagging before you trust the Ragas numbers.
+
+**`faithfulness` is not a valid gate on this corpus.** A three-perspective manual
+audit put the true figure at 0.968 where the judge reported 0.52 — the metric
+penalises natural-language restatements of terse `Credits — …` metadata lines. A
+stronger judge made it *worse*, not better. See PROGRESS.md Stage E.
+
+**`context_precision` is not a retrieval signal on this corpus either.** Ragas asks
+its judge, per retrieved chunk, whether that chunk was useful in arriving at the whole
+golden reference. When the reference aggregates several projects — every `cross`
+entry — no single chunk suffices, every verdict is 0, and average precision is exactly
+0.000 regardless of what was retrieved. It reads 0.000 on `g26`, whose top two chunks
+are precisely its two expected ids, and on `g36`, which retrieved 4 of 4. Trimming the
+reference to the half a chunk covers flips the same judge to 1 with retrieval
+unchanged. Reported, never gated, never tuned toward. See PROGRESS.md, the
+2026-08-11 instrument-fix section.
 
 ## Configuration
 

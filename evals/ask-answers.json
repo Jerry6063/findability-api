@@ -39,7 +39,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.8282932585525254,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g02",
@@ -81,7 +84,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.7172492674878609,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g03",
@@ -123,7 +129,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.7694418929089587,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g04",
@@ -166,7 +175,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.7370349621051249,
   "context_precision": 0.99999999995,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g05",
@@ -208,7 +220,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.7386562239035682,
   "context_precision": 0.99999999995,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g06",
@@ -251,7 +266,10 @@
   "faithfulness": 0.8,
   "answer_relevancy": 0.8011802855765137,
   "context_precision": 0.8333333332916666,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g07",
@@ -293,7 +311,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.5833787663349733,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g08",
@@ -335,7 +356,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.7828437382523631,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g09",
@@ -377,7 +401,10 @@
   "faithfulness": 0.14285714285714285,
   "answer_relevancy": 0.6608209180828655,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g10",
@@ -419,7 +446,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.7008767786192281,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g11",
@@ -461,7 +491,10 @@
   "faithfulness": 0.5,
   "answer_relevancy": 0.8033346445581259,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g12",
@@ -503,7 +536,10 @@
   "faithfulness": 0.6666666666666666,
   "answer_relevancy": 0.7342766976221743,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g13",
@@ -545,7 +581,10 @@
   "faithfulness": 0.4444444444444444,
   "answer_relevancy": 0.7844154609691314,
   "context_precision": 0.49999999995,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g14",
@@ -587,7 +626,10 @@
   "faithfulness": 0.625,
   "answer_relevancy": 0.6624590979458997,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g15",
@@ -629,7 +671,10 @@
   "faithfulness": 0.5714285714285714,
   "answer_relevancy": 0.6898609222635321,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g16",
@@ -671,7 +716,10 @@
   "faithfulness": 0.8,
   "answer_relevancy": 0.7652003390414756,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g17",
@@ -714,7 +762,10 @@
   "faithfulness": 0.875,
   "answer_relevancy": 0.816644693755206,
   "context_precision": 0.99999999995,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g18",
@@ -756,7 +807,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.7737344457709051,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g19",
@@ -798,7 +852,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.7288605602349617,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g20",
@@ -841,7 +898,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.6615780832398631,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g21",
@@ -883,7 +943,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.8015142610257585,
   "context_precision": 0.9999999999,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g22",
@@ -927,7 +990,10 @@
   "faithfulness": 0.8571428571428571,
   "answer_relevancy": 0.65194064622184,
   "context_precision": 0.49999999995,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g23",
@@ -971,7 +1037,10 @@
   "faithfulness": 0.6666666666666666,
   "answer_relevancy": 0.7129393573961124,
   "context_precision": 0.99999999995,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g24",
@@ -1015,7 +1084,10 @@
   "faithfulness": 0.16666666666666666,
   "answer_relevancy": 0.7465143126741575,
   "context_precision": 0.0,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g25",
@@ -1061,7 +1133,10 @@
   "faithfulness": 0.8571428571428571,
   "answer_relevancy": 0.8506895414667204,
   "context_precision": 0.0,
-  "context_recall": 0.6666666666666666
+  "context_recall": 0.6666666666666666,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g26",
@@ -1105,7 +1180,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.6693565020362375,
   "context_precision": 0.0,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g27",
@@ -1150,7 +1228,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.8625111504189213,
   "context_precision": 0.0,
-  "context_recall": 0.6666666666666666
+  "context_recall": 0.6666666666666666,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g28",
@@ -1194,7 +1275,10 @@
   "faithfulness": 1.0,
   "answer_relevancy": 0.6929104435676043,
   "context_precision": 0.0,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "answered",
+  "answered_in_part": null,
+  "outcome": "answered"
  },
  {
   "id": "g29",
@@ -1228,7 +1312,10 @@
   "lang": "en",
   "latency_s": 3.94,
   "refused": true,
-  "should_refuse": true
+  "should_refuse": true,
+  "expected_outcome": "refused",
+  "answered_in_part": null,
+  "outcome": "refused"
  },
  {
   "id": "g30",
@@ -1264,7 +1351,10 @@
   "lang": "zh",
   "latency_s": 5.4,
   "refused": true,
-  "should_refuse": true
+  "should_refuse": true,
+  "expected_outcome": "refused",
+  "answered_in_part": null,
+  "outcome": "refused"
  },
  {
   "id": "g31",
@@ -1298,7 +1388,10 @@
   "lang": "en",
   "latency_s": 1.96,
   "refused": true,
-  "should_refuse": true
+  "should_refuse": true,
+  "expected_outcome": "refused",
+  "answered_in_part": null,
+  "outcome": "refused"
  },
  {
   "id": "g32",
@@ -1334,7 +1427,10 @@
   "lang": "en",
   "latency_s": 3.13,
   "refused": true,
-  "should_refuse": true
+  "should_refuse": true,
+  "expected_outcome": "refused",
+  "answered_in_part": null,
+  "outcome": "refused"
  },
  {
   "id": "g33",
@@ -1372,7 +1468,10 @@
   "lang": "en",
   "latency_s": 3.62,
   "refused": true,
-  "should_refuse": true
+  "should_refuse": true,
+  "expected_outcome": "refused",
+  "answered_in_part": null,
+  "outcome": "refused"
  },
  {
   "id": "g34",
@@ -1406,7 +1505,10 @@
   "lang": "en",
   "latency_s": 2.73,
   "refused": true,
-  "should_refuse": true
+  "should_refuse": true,
+  "expected_outcome": "refused",
+  "answered_in_part": null,
+  "outcome": "refused"
  },
  {
   "id": "g35",
@@ -1448,12 +1550,19 @@
   "category": "partial",
   "lang": "en",
   "latency_s": 5.74,
-  "refused": true,
+  "refused": null,
   "should_refuse": false,
   "faithfulness": 0.6363636363636364,
   "answer_relevancy": 0.9646720333083838,
   "context_precision": 0.99999999995,
-  "context_recall": 0.5
+  "context_recall": 0.5,
+  "expected_outcome": "partial",
+  "partial_check": {
+   "answered_part": true,
+   "stated_gap": true
+  },
+  "answered_in_part": true,
+  "outcome": "partial"
  },
  {
   "id": "g36",
@@ -1494,11 +1603,18 @@
   "category": "partial",
   "lang": "zh",
   "latency_s": 7.16,
-  "refused": true,
+  "refused": null,
   "should_refuse": false,
   "faithfulness": 0.6666666666666666,
   "answer_relevancy": 0.0,
   "context_precision": 0.0,
-  "context_recall": 1.0
+  "context_recall": 1.0,
+  "expected_outcome": "partial",
+  "partial_check": {
+   "answered_part": true,
+   "stated_gap": true
+  },
+  "answered_in_part": true,
+  "outcome": "partial"
  }
 ]
