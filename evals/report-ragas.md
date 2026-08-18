@@ -2,16 +2,16 @@
 
 Judge: `claude-haiku-4-5` via `langchain-anthropic`. Embeddings for answer relevancy: `gemini-embedding-2`, the same model the corpus is indexed with. Both reuse keys the service already holds — no new accounts.
 
-Samples: 30 answerable golden entries scored on the four metrics; 34 answers (including 6 out-of-corpus questions) classified refused/answered, and 2 `partial` entries checked separately.
+Samples: 36 answerable golden entries scored on the four metrics; 39 answers (including 6 out-of-corpus questions) classified refused/answered, and 3 `partial` entries checked separately.
 
 ## Metric means (answerable entries)
 
 | metric | mean |
 | --- | --- |
-| faithfulness | 0.8092 |
-| answer_relevancy | 0.7231 |
-| context_precision | 0.7611 |
-| context_recall | 0.9611 |
+| faithfulness | 0.8105 |
+| answer_relevancy | 0.7401 |
+| context_precision | 0.7778 |
+| context_recall | 0.9148 |
 
 `context_precision` is printed for continuity and **is not read as a retrieval
 signal on this corpus** — the mechanism is below, under "Why `context_precision`
@@ -20,29 +20,30 @@ either (PROGRESS.md, Stage E). The two metrics that survived audit are
 `answer_relevancy` and `context_recall`; the deterministic retrieval metrics in
 `report-retrieval.md` are what CI actually gates on.
 
-## Refusal behaviour (34 of 36 entries)
+## Refusal behaviour (39 of 42 entries)
 
 Measured in both directions on purpose: a service that refuses everything would score 100% on "did it refuse the out-of-corpus questions" alone.
 
-The 2 `partial` entries are **not** in this table. They ask for several things at once where the corpus carries some and not the rest, so both binary labels are wrong for them; folding them in is what made this report print a 6.7% false-refusal rate on 2026-08-11 while the service had in fact refused nothing it could answer. They are measured below instead.
+The 3 `partial` entries are **not** in this table. They ask for several things at once where the corpus carries some and not the rest, so both binary labels are wrong for them; folding them in is what made this report print a 6.7% false-refusal rate on 2026-08-11 while the service had in fact refused nothing it could answer. They are measured below instead.
 
 | | refused | answered |
 | --- | --- | --- |
 | **should refuse** (6) | 6 | 0 |
-| **should answer** (28) | 0 | 28 |
+| **should answer** (33) | 0 | 33 |
 
 - Refusal accuracy (out-of-corpus correctly declined): **6/6 = 100.0%**
-- False-refusal rate (fully-answerable wrongly declined): **0/28 = 0.0%**
-- Citations on refusals: 3/6 = 50.0% returned none (an unsourced refusal is the correct shape).
+- False-refusal rate (fully-answerable wrongly declined): **0/33 = 0.0%**
+- Citations on refusals: 4/6 = 66.7% returned none (an unsourced refusal is the correct shape).
 
-## Partial answers (2 entries)
+## Partial answers (3 entries)
 
 A separate two-sided check, not a third value in the matrix above: does the reply answer the part the corpus supports **and** state that the rest is not in the portfolio? Failing either half fails the check.
 
-- Answered in part and flagged the gap: **2/2 = 100.0%**
+- Answered in part and flagged the gap: **3/3 = 100.0%**
 
 - `g35` (en) — both halves present; cited `hxvp-marketing-group, haptic-navigation-research, thu-adri`
-- `g36` (zh) — both halves present; cited `spatial-pixel-lab, haptic-atlas`
+- `g36` (zh) — both halves present; cited `haptic-atlas, belt-for-the-blind, spatial-pixel-lab`
+- `g41` (en) — both halves present; cited `heartwhisper`
 
 ## Why `context_precision` collapses on multi-source questions
 
@@ -50,15 +51,15 @@ Ragas asks its judge, once per retrieved chunk, whether that chunk "was useful i
 
 | reference aggregates | n | mean ctx.prec. | entries at exactly 0.000 |
 | --- | --- | --- | --- |
-| one expected source | 21 | 0.9683 | 0 |
-| two or more expected sources | 9 | 0.2778 | 6 |
+| one expected source | 26 | 0.9679 | 0 |
+| two or more expected sources | 10 | 0.2833 | 6 |
 
 Entries scoring 0.000 while retrieval actually found expected chunks:
 
 - `g24` (cross) — retrieved 2 of 2 expected ids (`spatial-pixel-lab, social-rhythm`) and still scores 0.000.
-- `g25` (cross) — retrieved 2 of 3 expected ids (`belt-for-the-blind, social-rhythm`) and still scores 0.000.
-- `g26` (cross) — retrieved 2 of 2 expected ids (`floralink, heartwhisper`) and still scores 0.000.
-- `g27` (cross) — retrieved 2 of 3 expected ids (`belt-for-the-blind, heartwhisper`) and still scores 0.000.
+- `g25` (cross) — retrieved 2 of 3 expected ids (`social-rhythm, belt-for-the-blind`) and still scores 0.000.
+- `g26` (cross) — retrieved 1 of 2 expected ids (`floralink`) and still scores 0.000.
+- `g27` (cross) — retrieved 1 of 3 expected ids (`belt-for-the-blind`) and still scores 0.000.
 - `g28` (cross) — retrieved 2 of 2 expected ids (`ikon-pass-japan, ikon-atlas`) and still scores 0.000.
 - `g36` (partial) — retrieved 4 of 4 expected ids (`spatial-pixel-lab, haptic-navigation-research, belt-for-the-blind, haptic-atlas`) and still scores 0.000.
 
@@ -66,68 +67,74 @@ Verified in isolation against the same judge: replaying a 0.000 entry chunk by c
 
 ## Three weakest entries
 
-### g09 (direct, en) — faithfulness 0.143, answer_relevancy 0.661, context_precision 1.000, context_recall 1.000
+### g09 (direct, en) — faithfulness 0.167, answer_relevancy 0.650, context_precision 1.000, context_recall 1.000
 
 **Q** Who did he collaborate with on the plant-based neighborhood game, and which part did he handle himself?
 
 **Expected citations** `floralink` — **retrieved** `floralink, spatial-pixel-lab, haptic-navigation-research, social-rhythm, haptic-atlas` — **cited** `floralink`
 
-**Answer** On FloraLink, Jerry collaborated with Xiaotong Qin under mentor Ruby Wu. He handled the sociological research, game mechanism design, drawings, and model making.
+**Answer** He collaborated with Xiaotong Qin on FloraLink, the plant-based neighborhood game. Jerry handled the sociological research, game mechanism design, drawings, and model making.
 
-### g24 (cross, en) — faithfulness 0.167, answer_relevancy 0.747, context_precision 0.000, context_recall 1.000
+### g02 (direct, en) — faithfulness 0.300, answer_relevancy 0.709, context_precision 1.000, context_recall 1.000
 
-**Q** Where has he worked with hand tracking or gesture input, and what did each of those involve?
+**Q** What does the one-minute walkthrough of the studio platform actually show?
 
-**Expected citations** `social-rhythm, spatial-pixel-lab` — **retrieved** `spatial-pixel-lab, haptic-navigation-research, social-rhythm, hxvp-marketing-group, haptic-atlas` — **cited** `spatial-pixel-lab, social-rhythm`
+**Expected citations** `hxvp` — **retrieved** `hxvp, hxvp-marketing-group, social-rhythm, ikon-pass-japan, haptic-atlas` — **cited** `hxvp`
 
-**Answer** Jerry worked with hand tracking and gesture detection at SVA's Spatial Pixel Lab, where he created a projection installation for two players, ran usability tests to cut gesture misclassifications, and addressed occlusion and latency issues. He also used Mediapipe hand tracking for Social Rhythm Part I, where each finger drives a live abstract tendril in the projection.
+**Answer** The walkthrough traces a complete production cycle in nine scenes: role-based login, live budget editing that recomputes totals immediately, casting approval, client shortlist distribution, crew booking and call-sheet confirmation, time-log verification, and invoice approval — demonstrating how production, client, talent, and crew portals share one data spine and update each other in real time.
 
-### g13 (direct, en) — faithfulness 0.444, answer_relevancy 0.784, context_precision 0.500, context_recall 1.000
+### g11 (direct, en) — faithfulness 0.333, answer_relevancy 0.818, context_precision 1.000, context_recall 1.000
 
-**Q** On that studio platform rebuild, how did the designer's work and his own feed into the backend engineer's build, and what did he find in the existing backend?
+**Q** What is the Belt for the Blind based on, and when did he work on it?
 
-**Expected citations** `hxvp-marketing-group` — **retrieved** `hxvp, hxvp-marketing-group, ikon-pass-japan, haptic-navigation-research, thu-adri` — **cited** `hxvp-marketing-group`
+**Expected citations** `belt-for-the-blind` — **retrieved** `belt-for-the-blind, haptic-atlas, haptic-navigation-research, social-rhythm, spatial-pixel-lab` — **cited** `belt-for-the-blind`
 
-**Answer** He turned the designer's Figma frames into a high-fidelity prototype that became the living spec and draft API contract for the backend engineer's Django build. Auditing the existing backend, he found roughly 290 endpoints with live Stripe and payment-email wiring, then authored the feature-to-API integration scope and hardening guidance for the payment paths.
+**Answer** Belt for the Blind is based on tactile perception and uses a motor module worn at the waist to deliver directional cues through vibration. Jerry worked on it from October 2023 to October 2024.
 
 
 ## Per entry
 
 | id | cat | lang | faith. | ans.rel. | ctx.prec. | ctx.rec. | outcome | expected | cited |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| g01 | direct | en | 1.000 | 0.828 | 1.000 | 1.000 | answered | answered | hxvp |
-| g02 | direct | en | 1.000 | 0.717 | 1.000 | 1.000 | answered | answered | hxvp |
-| g03 | direct | en | 1.000 | 0.769 | 1.000 | 1.000 | answered | answered | hxvp |
-| g04 | direct | zh | 1.000 | 0.737 | 1.000 | 1.000 | answered | answered | hxvp, hxvp-marketing-group |
-| g05 | direct | en | 1.000 | 0.739 | 1.000 | 1.000 | answered | answered | haptic-atlas |
-| g06 | direct | en | 0.800 | 0.801 | 0.833 | 1.000 | answered | answered | haptic-atlas, haptic-navigation-research |
-| g07 | direct | en | 1.000 | 0.583 | 1.000 | 1.000 | answered | answered | social-rhythm |
-| g08 | direct | en | 1.000 | 0.783 | 1.000 | 1.000 | answered | answered | social-rhythm |
-| g09 | direct | en | 0.143 | 0.661 | 1.000 | 1.000 | answered | answered | floralink |
-| g10 | direct | en | 1.000 | 0.701 | 1.000 | 1.000 | answered | answered | heartwhisper |
-| g11 | direct | en | 0.500 | 0.803 | 1.000 | 1.000 | answered | answered | belt-for-the-blind |
-| g12 | direct | en | 0.667 | 0.734 | 1.000 | 1.000 | answered | answered | hxvp-marketing-group |
-| g13 | direct | en | 0.444 | 0.784 | 0.500 | 1.000 | answered | answered | hxvp-marketing-group |
-| g14 | direct | zh | 0.625 | 0.662 | 1.000 | 1.000 | answered | answered | hxvp-marketing-group |
-| g15 | direct | en | 0.571 | 0.690 | 1.000 | 1.000 | answered | answered | spatial-pixel-lab |
-| g16 | direct | en | 0.800 | 0.765 | 1.000 | 1.000 | answered | answered | start-me-up |
-| g17 | direct | en | 0.875 | 0.817 | 1.000 | 1.000 | answered | answered | haptic-atlas, haptic-navigation-research |
-| g18 | direct | zh | 1.000 | 0.774 | 1.000 | 1.000 | answered | answered | thu-adri |
-| g19 | direct | en | 1.000 | 0.729 | 1.000 | 1.000 | answered | answered | ascii-motion-jellyfish |
-| g20 | direct | en | 1.000 | 0.662 | 1.000 | 1.000 | answered | answered | ikon-atlas, ikon-pass-japan |
-| g21 | direct | en | 1.000 | 0.802 | 1.000 | 1.000 | answered | answered | findability |
-| g22 | cross | en | 0.857 | 0.652 | 0.500 | 1.000 | answered | answered | hxvp, hxvp-marketing-group |
-| g23 | cross | en | 0.667 | 0.713 | 1.000 | 1.000 | answered | answered | haptic-atlas, haptic-navigation-research |
-| g24 | cross | en | 0.167 | 0.747 | 0.000 | 1.000 | answered | answered | spatial-pixel-lab, social-rhythm |
-| g25 | cross | en | 0.857 | 0.851 | 0.000 | 0.667 | answered | answered | belt-for-the-blind, social-rhythm, haptic-navigation-research |
-| g26 | cross | en | 1.000 | 0.669 | 0.000 | 1.000 | answered | answered | floralink, heartwhisper |
-| g27 | cross | en | 1.000 | 0.863 | 0.000 | 0.667 | answered | answered | belt-for-the-blind, heartwhisper |
-| g28 | cross | zh | 1.000 | 0.693 | 0.000 | 1.000 | answered | answered | ikon-atlas, ikon-pass-japan |
+| g01 | direct | en | 1.000 | 0.806 | 1.000 | 1.000 | answered | answered | hxvp |
+| g02 | direct | en | 0.300 | 0.709 | 1.000 | 1.000 | answered | answered | hxvp |
+| g03 | direct | en | 1.000 | 0.640 | 1.000 | 1.000 | answered | answered | hxvp |
+| g04 | direct | zh | 1.000 | 0.720 | 1.000 | 1.000 | answered | answered | hxvp, hxvp-marketing-group |
+| g05 | direct | en | 1.000 | 0.803 | 0.833 | 1.000 | answered | answered | haptic-atlas, haptic-navigation-research |
+| g06 | direct | en | 1.000 | 0.820 | 0.833 | 1.000 | answered | answered | haptic-atlas, haptic-navigation-research, belt-for-the-blind |
+| g07 | direct | en | 1.000 | 0.709 | 1.000 | 1.000 | answered | answered | social-rhythm |
+| g08 | direct | en | 0.833 | 0.731 | 1.000 | 1.000 | answered | answered | social-rhythm |
+| g09 | direct | en | 0.167 | 0.650 | 1.000 | 1.000 | answered | answered | floralink |
+| g10 | direct | en | 1.000 | 0.714 | 1.000 | 1.000 | answered | answered | heartwhisper |
+| g11 | direct | en | 0.333 | 0.818 | 1.000 | 1.000 | answered | answered | belt-for-the-blind |
+| g12 | direct | en | 0.667 | 0.692 | 1.000 | 1.000 | answered | answered | hxvp-marketing-group |
+| g13 | direct | en | 0.556 | 0.753 | 0.500 | 1.000 | answered | answered | hxvp-marketing-group |
+| g14 | direct | zh | 1.000 | 0.757 | 1.000 | 1.000 | answered | answered | hxvp-marketing-group |
+| g15 | direct | en | 1.000 | 0.847 | 1.000 | 1.000 | answered | answered | spatial-pixel-lab |
+| g16 | direct | en | 0.833 | 0.676 | 1.000 | 1.000 | answered | answered | start-me-up |
+| g17 | direct | en | 1.000 | 0.813 | 1.000 | 1.000 | answered | answered | haptic-atlas, haptic-navigation-research |
+| g18 | direct | zh | 1.000 | 0.776 | 1.000 | 1.000 | answered | answered | thu-adri |
+| g19 | direct | en | 1.000 | 0.927 | 1.000 | 1.000 | answered | answered | ascii-motion-jellyfish |
+| g20 | direct | en | 0.875 | 0.757 | 1.000 | 1.000 | answered | answered | ikon-atlas, ikon-pass-japan |
+| g21 | direct | en | 0.833 | 0.834 | 1.000 | 1.000 | answered | answered | findability |
+| g22 | cross | en | 0.500 | 0.701 | 0.500 | 1.000 | answered | answered | hxvp, hxvp-marketing-group |
+| g23 | cross | en | 1.000 | 0.721 | 1.000 | 1.000 | answered | answered | haptic-atlas, haptic-navigation-research |
+| g24 | cross | en | 0.750 | 0.581 | 0.000 | 1.000 | answered | answered | spatial-pixel-lab, social-rhythm |
+| g25 | cross | en | 0.667 | 0.858 | 0.000 | 0.400 | answered | answered | social-rhythm, belt-for-the-blind, haptic-navigation-research |
+| g26 | cross | en | 0.556 | 0.703 | 0.000 | 0.500 | answered | answered | floralink |
+| g27 | cross | en | 1.000 | 0.552 | 0.000 | 0.333 | answered | answered | belt-for-the-blind |
+| g28 | cross | zh | 1.000 | 0.641 | 0.000 | 1.000 | answered | answered | ikon-pass-japan, ikon-atlas |
 | g29 | refusal | en | — | — | — | — | refused | refused | — |
 | g30 | refusal | zh | — | — | — | — | refused | refused | heartwhisper |
 | g31 | refusal | en | — | — | — | — | refused | refused | — |
-| g32 | refusal | en | — | — | — | — | refused | refused | spatial-pixel-lab |
-| g33 | refusal | en | — | — | — | — | refused | refused | haptic-navigation-research, spatial-pixel-lab, start-me-up |
+| g32 | refusal | en | — | — | — | — | refused | refused | spatial-pixel-lab, haptic-navigation-research |
+| g33 | refusal | en | — | — | — | — | refused | refused | — |
 | g34 | refusal | en | — | — | — | — | refused | refused | — |
-| g35 | partial | en | 0.636 | 0.965 | 1.000 | 0.500 | partial | partial | hxvp-marketing-group, haptic-navigation-research, thu-adri |
-| g36 | partial | zh | 0.667 | 0.000 | 0.000 | 1.000 | partial | partial | spatial-pixel-lab, haptic-atlas |
+| g35 | partial | en | 0.889 | 0.943 | 1.000 | 0.500 | partial | partial | hxvp-marketing-group, haptic-navigation-research, thu-adri |
+| g36 | partial | zh | 0.385 | 0.000 | 0.000 | 0.600 | partial | partial | haptic-atlas, belt-for-the-blind, spatial-pixel-lab |
+| g37 | direct | en | 0.909 | 0.951 | 1.000 | 1.000 | answered | answered | heartwhisper |
+| g38 | direct | en | 0.571 | 0.798 | 1.000 | 1.000 | answered | answered | floralink |
+| g39 | direct | en | 1.000 | 0.839 | 1.000 | 1.000 | answered | answered | belt-for-the-blind |
+| g40 | direct | zh | 0.667 | 0.847 | 1.000 | 1.000 | answered | answered | heartwhisper |
+| g41 | partial | en | 1.000 | 0.950 | 1.000 | 1.000 | partial | partial | heartwhisper |
+| g42 | cross | en | 0.889 | 0.607 | 0.333 | 0.600 | answered | answered | haptic-navigation-research, spatial-pixel-lab, belt-for-the-blind |
