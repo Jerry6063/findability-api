@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import ipaddress
 import json
+import logging
 import os
 import re
 import threading
@@ -31,6 +32,10 @@ from pydantic import BaseModel, Field
 from starlette.middleware.base import BaseHTTPMiddleware
 
 # --- configuration (env only; no secret ever lands in code or git) ----------
+
+# Named rather than the root logger so a line from this service is attributable
+# in Fly's log stream, where uvicorn's own output shares the stream.
+LOG = logging.getLogger("findability")
 
 EMBED_MODEL = os.environ.get("FINDABILITY_EMBED_MODEL", "gemini-embedding-2")
 ANSWER_MODEL = os.environ.get("FINDABILITY_ANSWER_MODEL", "claude-sonnet-4-5")
@@ -361,6 +366,21 @@ DAILY_STATE_BODY = {
         "so answers are held back until it can."
     ),
     "reason": "daily_limit",
+}
+# The third refusal, and the only one this service does not decide for itself:
+# the Anthropic account behind ANTHROPIC_API_KEY has reached the usage limit set
+# on it, so the answer model refuses to spend and no amount of waiting inside the
+# day fixes it. 503 rather than 429 is the honest code — this is the upstream
+# dependency being unavailable, not this service throttling the caller — and it
+# gets its own `reason` because the sentence the visitor is owed is neither of
+# the 429 ones: "try again in a moment" is false until someone raises a limit or
+# a billing period rolls over, and "resets at midnight UTC" is false too.
+QUOTA_EXHAUSTED_BODY = {
+    "detail": (
+        "The live Q&A is paused: its answer model has reached the usage limit "
+        "set on the account behind it. Search and related work are unaffected."
+    ),
+    "reason": "quota_exhausted",
 }
 # Distinct reason string on purpose: `daily_limit` means "Q&A is out of budget"
 # to the frontend and is already coded against, so /search must not borrow it.
@@ -799,6 +819,29 @@ def ask(req: AskRequest) -> AskResponse | JSONResponse:
                 {"role": "assistant", "content": "{"},
             ],
         )
+    except anthropic.APIStatusError as exc:
+        # `billing_error` is a first-class member of the SDK's own ErrorType
+        # literal (anthropic.types.shared.error_type), parsed off `error.type` in
+        # the response body by APIStatusError.__init__ and exposed as `.type`.
+        # Matching on it is exact: it is the type the API sends when the account
+        # has reached the API usage limits configured on it, and it is a
+        # different string from every other refusal this call can draw —
+        # `rate_limit_error` (transient RPM/TPM throttling, worth retrying),
+        # `invalid_request_error` (our bug), `authentication_error` (bad key),
+        # `overloaded_error` (Anthropic's capacity). Keying on the status code
+        # instead would either swallow those or miss this one, since the same
+        # 4xx carries several types.
+        if exc.type == "billing_error":
+            # A refusal to spend is not a crash. One line, no traceback: the
+            # service is behaving correctly and the operator needs the fact, not
+            # a stack. Deliberately not exc.message — that text is the upstream
+            # account's business and has no place in a request log this size.
+            LOG.warning(
+                "answer model refused on billing_error (HTTP %s, request-id %s); "
+                "serving quota_exhausted", exc.status_code, exc.request_id
+            )
+            return JSONResponse(status_code=503, content=QUOTA_EXHAUSTED_BODY)
+        raise HTTPException(502, f"Answer model call failed: {exc}") from exc
     except Exception as exc:
         raise HTTPException(502, f"Answer model call failed: {exc}") from exc
 
