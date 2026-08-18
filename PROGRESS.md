@@ -1039,3 +1039,267 @@ MRR **0.9000**(floor 0.85)。本轮只动 `evals/run_ragas.py` 与它的产物,
       一个新旁证:`context_precision` 在它身上给了 1.000。枚举型跨项目问句要不要
       单独加指标,仍然待定。
 - [ ] Fly 仍未重新部署,线上跑的还是 `0a61c0d` 之前的镜像。
+
+---
+
+## 2026-08-17 语料刷新:三份 case study 的 `detail` 进语料
+
+站点给 HeartWhisper / FloraLink / Belt for the Blind 三个项目加了 `detail` 数组
+(case study 页:叙事正文、实验数字、设计决策),`/ask` 的语料是在这些内容存在
+之前建的。本轮走完整条链路:摄取 → 产物 → golden 逐条审计 → 评测 → CI →
+部署。**其中 Ragas 与线上 `/ask` 实证没跑成**,原因见文末,不是跳过。
+
+### `jsdata.py` 扛住了,这是设计换来的
+
+先验证再动手:`detail` 是嵌套对象数组(`type`/`items`/`term`/`body`/`alt`…),
+Stage A 那个"只认字面量子集、不认的直接抛错"的解析器**一次通过**,15 条 chunk
+全部解析成功。当初写"不支持的语法直接抛错"是为了防止静默产出空语料,这次它
+反过来证明了另一半:合法的新结构不需要改解析器。`ingest.py` 侧也无需改动就能
+把 `detail` 折进 chunk 文本——但折进来的**量**才是问题。
+
+### 切分决策:保持整项目 chunk,但先剔掉两类非正文
+
+`--dry-run` 的实测(未做任何处理时):
+
+| id | 旧 | detail 原样折入 | 剔除后(最终) |
+| --- | --- | --- | --- |
+| floralink | 1588 | 15643 | **9806** |
+| heartwhisper | 1992 | 20907 | **15748** |
+| belt-for-the-blind | 399 | 8093 | **5136** |
+| 其余 12 条 | 未变 | 未变 | 未变 |
+| **合计** | 14661 | 55325 | **41372** |
+
+剔掉的是两类:
+
+1. **`alt`(图片无障碍描述)**。它写的是图**长什么样**,不是项目**做了什么**。
+   量了一下再决定:三个 chunk 里 alt 的**不重复词有 56%–70% 在本 chunk 其他地方
+   从未出现**,而这批"只在 alt 里有"的词是 glowing / greyscale / mannequin /
+   dashed / silhouettes 这种外观词汇。承重的事实全在正文:Belt 的 L5 依据在
+   `body`("The human spine also has a natural indentation at the L5 vertebra"),
+   准确率阶梯在 ladder 行,FloraLink 的 8 名测试者在 prose 里。**特意核对过最坏
+   情况**——只有 MRI 图版自己的标注("L2 to S2")是 alt 独有,那是图注不是论据。
+   main.js 自己的注释也写明了意图:转写文字留在图下方,"so the /ask corpus still
+   has words for everything the pictures say"。
+2. **detail 块的 `type` / `variant`**。它们是渲染器的块类型(hero/media/text/
+   list/grid),单个 chunk 里贡献了 29 行 `Category: media` 这样的噪声。
+   `type` 必须**按上下文**跳过而不是全局跳过:lab 条目的 `type` 是
+   'Generative · 2026'、`credits.type` 是学科名,两者都是真内容。
+
+**为什么不把 `detail` 拆成小 chunk**(这是本轮真正的岔路口):
+
+- **嵌入安全性不构成理由。** 实测 token(`gemini-embedding-2`,上限 8192):最大的
+  heartwhisper 原样折入是 4939(60.3%),剔除后 **3749(45.8%)**。没有一条接近
+  上限,拆分在这条上买不到任何余量。
+- **检索行为**:拆分会让 chunk id 不再等于图节点 id。图谱、`/related/{id}`、
+  `/ask` 的引用 chip、golden 的 `expected_citations`、CI 的指纹闸口,全部建立在
+  "一个节点一条 chunk"上。要拆就得同时改 `ingest.py`、`main.py`、
+  `run_retrieval.py`、`ci_retrieval.py`、golden set 和站点 JS——在一轮以
+  "重新量一遍"为目的的drill 里改这么多,还会让前后指标不可比。
+- **成本**:拆分能省钱,这是它唯一实打实的好处。但见下面的实测,涨幅没有大到
+  需要动架构。
+
+**结论:保持整项目 chunk。** 如果将来语料超过约 25 条、或单个项目超过约 25K 字符,
+这个决定要重新拿出来算。
+
+### 代价:上下文实测涨 1.85 倍,单次成本涨约 44%
+
+用缓存向量对每条 golden 问句取 top-5(ASK_TOP_K=5),量上下文的真实字符数:
+
+| | 均值 | 中位数 | 最大 |
+| --- | --- | --- | --- |
+| 旧语料(36 问) | 4940 | 5605 | 7270 |
+| 新语料(42 问) | **9122** | 7441 | **33312** |
+
+上下文本身涨 1.85 倍,但**每次问答的成本涨得比这少**,因为 system prompt、问句
+和输出这三块不随语料变。按 Sonnet 4.5 输入 $3/M、输出 $15/M,以及本语料实测的
+4.33 字符/token 折算:**均值约 $0.0066 → $0.0095(+44%),最坏一次约 $0.026**。
+按 `DAILY_ASK_LIMIT=150` 算,日封顶敞口从约 $1.0 抬到约 $1.4(均值)/ $3.9(最坏)。
+**这是估算不是端到端实测**——端到端那次没跑成,原因见文末。
+
+### 图谱:边 30 → 29,零孤立点,但三个节点被"推远"了
+
+15 节点、29 边、单连通、零孤立点,阈值仍是 0.70。值得记的是相似度分布整体下移:
+中位数 0.6956 → 0.6782,最小值 0.6234 → **0.5504**。掉边的是
+`floralink|social-rhythm` 和 `haptic-atlas|heartwhisper`,新增
+`haptic-navigation-research|social-rhythm`;heartwhisper 与 floralink 的度都从 3 降到 2。
+
+**这不是 bug,是语义变具体的直接后果**:两条 chunk 从 1.5K 字符的概述变成
+10–16K 字符的完整 case study 之后,它们的向量不再泛泛地靠近"同一个人的设计作品"
+这个基线,而是各自被自己的具体内容拉走。和 Stage A 记过的 HXVP 语义离群是同一类
+现象。站点节点数没变(仍 15),前端布局不受影响。
+
+### golden set 逐条审计:KEEP 33 / REPAIR 3 / DROP 0 / ADD 6
+
+**按 08-09 记下的规矩办:不用关键词探针,逐条比对新语料。** 这次有一个结构性的
+便利——只有 3 条 chunk 变了,其余 12 条**逐字节相同**,所以不引用这三条的 29 条
+golden 在"参考答案是否还被语料支撑"这一轴上是构造性 KEEP,不是抽样通过。
+
+引用了变动 chunk 的 7 条里,4 条 KEEP(g09/g10/g26/g27,措辞逐字还在),3 条 REPAIR:
+
+| id | 为什么必须修 |
+| --- | --- |
+| g11 | 原答案结尾是"No results or findings are listed"。旧语料下成立,新语料下误导——belt 现在有整套可行性实验(五个部位对比、腰部/L5 依据、蒙眼受试者 + 远程操作者、三台相机)。逐行复核后**"没有给出实测结果"这半句仍然成立**,于是保留并收窄成"报告的是方法不是结果"。 |
+| g25 | 原答案说 HeartWhisper"recognizes emotion from speech"。新语料**用原话否掉了**:"only the text ever reaches the model",且"In the future, audio detection could be incorporated"。同时补上模型名(通义千问)。 |
+| g36 | 原答案结尾"参与人数则一处都没有"——**现在是假的**。FloraLink 写着"Eight testers completed a number game",HeartWhisper 写着"201 WeChat voice messages from 8 pairs of parent and child"。 |
+
+**g36 正是 08-09 那条教训的活标本**:它引用 Haptic Atlas 和 Spatial Pixel Lab 的
+每一个词组在新语料里都还逐字存在,关键词探针会报它健康,而它的**结论**已经错了。
+它的 partial 形状反而活了下来——现在是"有些测试给了人数、有些只给了次数",
+仍然半边可答半边不可答。
+
+**新增 6 条(g37–g42),全部打在新内容上:**
+
+| id | 类别 / 语言 | 打什么 |
+| --- | --- | --- |
+| g37 | direct / en | 准确率阶梯:77.6%(156/201)→ **87.6%**(176/201),X5 是唯一没加分的因子 |
+| g38 | direct / en | FloraLink 两个光实验:8 片叶子各测两次;**8 名测试者**、数字游戏、NASA-TLX |
+| g39 | direct / en | Belt 为什么选腰:五个部位对比、L5 凹陷;以及**蒙眼健视受试者、不是盲人用户** |
+| g40 | direct / **zh** | 通义千问 + 数据集来源(中文问句打英文语料) |
+| g41 | **partial** / en | 8 对亲子答得出,**如何招募答不出**(grep 过 recruit/volunteer/招募,零命中) |
+| g42 | cross / en | 哪些项目报了实测数字 |
+
+g41 本来想问"七个上下文因子分别是什么",查了一下发现语料**把它们全列了**
+(X1 gender · X2 age · … · X7 interval time),那就是 direct 不是 partial,于是换题。
+**先查再写,省掉一条标错类别的条目。**
+
+刷新后:42 条(direct 25 / cross 8 / refusal 6 / partial 3;en 35 / zh 7),15/15 节点全覆盖。
+
+### 拒答 6 条逐条复检:全部仍然成立
+
+这是 g32 曾经擦边的那类失败——语料变富之后,原本"答不出所以拒答"的问题可能
+变成"答得出",于是拒答条就成了错误的 ground truth。**逐条查过:**
+
+- **g32(Unity / Unreal / VR 头显)**:对新语料 grep `\bunity\b|\bunreal\b|\bVR\b|
+  \bheadsets?\b|virtual reality|game engine` → **零命中**。(第一次 grep 用的是
+  无边界的 `unity`,被 `com**munity**` 刷了一屏假命中;FloraLink 满篇 community,
+  这个坑值得记。)
+- **g29 / g30(报价、是否出售)**:grep 价格/售价/购买/`\$[0-9]` → **零命中**。
+- **g31(世界杯)、g33(职业前景推测)、g34(注入)**:与语料无关,不受影响。
+  g33 唯一的 `career` 命中是 FloraLink 引 Granovetter 弱关系那句,讲的是社会学
+  概念,不是 Jerry 的职业轨迹。
+
+**6/6 仍是正确的拒答条,一条都不用改。**
+
+### 检索指标:CI exit 0,没有下调任何 floor
+
+| 指标 | 旧语料 / 36 条 | 新语料 / 42 条 | floor |
+| --- | --- | --- | --- |
+| hit@3 | 0.9333 | **0.9167** | 0.85 |
+| hit@5 | 1.0000 | **1.0000** | 0.95 |
+| recall@3 | 0.9000 | 0.8750 | — |
+| recall@5 | 0.9528 | 0.9167 | — |
+| MRR | 0.9000 | **0.8819** | 0.85 |
+
+总数会掉是因为**加进来的 6 条里有一条很难**,不是老条目退步。拆开看就清楚:
+
+| 子集 | n | hit@3 | hit@5 | MRR |
+| --- | --- | --- | --- | --- |
+| 老条目 g01–g36(跑新语料) | 30 | **0.9333** | **1.0000** | 0.8833 |
+| 新增 g37–g42 | 6 | 0.8333 | 1.0000 | 0.9167 |
+
+**老条目里只有 g26 的名次动了(1 → 2),其余 29 条名次一字未变**,MRR 那
+0.0167 的差全部来自这一条。语料被大改之后检索能这么稳,本身是"整项目 chunk 没
+把检索搞坏"的证据。分类看:direct 25 条 hit@3 **1.0000**、partial 3 条 1.0000、
+zh 6 条全 1.0000;cross 8 条 hit@3 **0.6250**(旧 0.7143)——cross 一直是最弱的
+一类,这次又添了最难的一条。
+
+**g42 是唯一一条 top-3 全空的,而且它的失败方式值得单独记。** 它问"哪些项目报了
+实测数字",整个排序**是平的**:第一名 0.6637 到第八名 0.6166,15 个节点挤在
+0.05 的区间里,top-1 还是 `findability`(那条 240 字符、讲检索指标的 lab 条目)。
+原因不在 chunk 大小,在问句:**"报了实测数字"问的是语料自身的举证性质,不是任何
+一个主题**,纯语义检索没有抓手。这条留着不删——它是真实访客会问的问题,失败得
+诚实,而且删掉一条失败的条目来让数字好看,正是这份文件一直在防的事。
+
+**一处需要摊开说的 ground truth 改动:** g42 最初写的 `expected_citations` 漏了
+`spatial-pixel-lab`,而这与它自己 rationale 里定的规则("参考答案引用了实测数字
+的那些 chunk")自相矛盾——参考答案引用 Spatial Pixel Lab 的"5+ 次可用性测试 /
+3 轮迭代"和引用 Haptic Atlas 的"5–8 次走廊试验"是完全对称的。**这个不一致是在
+看排名时发现的,也就是在知道分数之后**;补上之后 hit@5 从 0.9722 回到 1.0000
+(首个命中从第 7 名移到第 4 名),hit@3 不受影响。写在这里而不是悄悄改掉,因为
+**看过分数之后再动 ground truth 的修改,必须是看得见的**。
+
+`evals/ci_retrieval.py` **exit 0**:`corpus: 15 chunks · golden: 42 entries
+(36 scorable)`,指纹闸口通过。三个 floor 一个都没动。
+
+### 指纹闸口按预期红了一次
+
+重新摄取之后、刷新 golden 之前,`ci_retrieval.py` 如期 fail:
+`corpus.json changed since the golden set was written (3d2eb5bc6e3e6d87 ->
+fc96bb2e6e479830)`。这是 08-09 那次补的闸口第一次在**计划内**的语料变更上生效,
+它工作正常:节点 id 全都还在,但文本动了,于是它拦下来要求复审参考答案。
+重新生成 `golden-embeddings.json` 之后转绿。
+
+顺带一提,`ci_retrieval.py` 里那句
+`if cached["expected_citations"] != entry["expected_citations"]` 也真的挡了一次:
+改 g42 的 ground truth 之后不重建缓存就会 fail。量具挡住了改量具的人,是好事。
+
+### Ragas 与线上 `/ask` 实证:**没跑成,被 API 额度挡住**
+
+`python evals/run_ragas.py` 在**第一个问题**上就 502 了:
+
+```
+anthropic.BadRequestError: Error code: 400 - You have reached your specified
+API usage limits. You will regain access on 2026-09-01 at 00:00 UTC.
+```
+
+这是账号级的花费上限,不是限流,重试无用。**零次 `/ask` 成功,因此这一轮
+Anthropic 花费为 0**;`evals/ask-answers.json` 与 `evals/report-ragas.md` 都是
+08-11 那次的产物,**一个字节都没被覆盖**,历史没有被改写。
+
+因此本轮**没有**新的 faithfulness / answer_relevancy / context_precision /
+context_recall 数字,也**没有**新的拒答矩阵与 partial 双向检查——那三件都要
+Sonnet 判官。**没有拿旧数字冒充新数字,也没有把判官换成 Gemini 来凑一份报告**:
+换判官会让这一轮和已记录的四次历史不可比,而可比性正是这套指标唯一的用处。
+
+需要说明的是,拒答那一格这轮**另有一份更强的证据**:上面那段逐条 grep 是确定性
+的,它直接回答"语料变富之后拒答条是否变得可答",而判官矩阵只能间接反映这件事。
+
+### 这次被什么绊了一下
+
+- `_flatten` 对全字符串数组是用 `", "` 拼接的,于是 `body: ['第一段','第二段']`
+  在 chunk 里变成"…batteries., The human spine also has…"——句号后面跟逗号。
+  不影响检索(实测老条目名次几乎没动),但读起来是错的。**这次没改**:它是既有
+  行为,改了会让本轮前后对照多一个变量。记在待办里。
+- 三个 case study 里 "eight" 出现的是**两个不同的东西**:FloraLink 实验一是
+  8 **片叶子**,实验二是 8 **名测试者**。g38 特意把两者都写进参考答案,好让
+  混淆这两个数的答案能被抓出来。
+
+### 部署:`fly deploy --ha=false`,新语料确认在线
+
+镜像自带 `chroma/` 与 `corpus.json`,部署即索引到位。部署前后 `/health` 都是
+`nodes: 15, vectors: 15`;`asks_today` 前后都是 **0**(部署会重置当日计数,已接受;
+本轮本来也没有成功的 `/ask`,所以这次重置没有信息损失)。
+
+**`/search` 三条只可能来自新内容的查询,全部第一名命中**(只走 Gemini,不受
+Anthropic 额度影响):
+
+| 查询 | top-1 | 分数 |
+| --- | --- | --- |
+| emotion detection accuracy with contextual factors | **heartwhisper** | 0.5633 |
+| NASA-TLX plant filtered light number game | **floralink** | 0.6334 |
+| why the waist and not the chest for a tactile cue | **belt-for-the-blind** | 0.6704 |
+
+"NASA-TLX"、"plant filtered light"、"the waist and not the chest" 这些说法在旧语料里
+**一个都不存在**,所以这三条就是"新语料确实在线上服役"的证据。
+
+**但线上 `/ask` 同样 502**,错误与本地逐字相同(额度上限,2026-09-01 恢复),
+说明 Fly 上的 `ANTHROPIC_API_KEY` 与本地是同一把。只打了 **1 次** `/ask` 用于确认
+状态,没有重试——重试改变不了账号级的上限。
+
+⚠️ **这意味着站点上的 ask 输入框现在对访客是坏的**(`/search`、`/related`、图谱
+一切正常)。**这不是本轮改动造成的**:额度上限是账号级的,部署之前就已生效。
+
+### 待办
+
+- [x] Fly 重新部署(见上一节)
+- [ ] ⚠️ **Anthropic 账号额度已用尽,2026-09-01 00:00 UTC 恢复**;在此之前线上
+      `/ask` 一直 502,ask 输入框对访客不可用。要么等,要么由 Jerry 去调账号的
+      usage limit。
+- [ ] **Ragas / 拒答矩阵 / partial 检查欠这一轮一次**。Anthropic 额度 2026-09-01
+      00:00 UTC 恢复,恢复后应当对**当前这份 42 条 golden + 新语料**补跑一次,
+      本节的检索数字才算配齐了生成侧的一半。
+- [ ] g42 的 top-3 全空:枚举"语料自身有什么性质"的问句,纯语义检索没有抓手。
+      与 g35 那条老待办(枚举型跨项目问句)是同一族问题,是否要单独加量具,仍待定。
+- [ ] `_flatten` 的数组拼接用 `", "`,把段落连成一句。下次动 `ingest.py` 时一起修。
+- [ ] `DAILY_ASK_LIMIT=150` 是按旧上下文规模定的。新语料下均值单次成本涨约 44%,
+      日封顶敞口约 $1.4(均值)/ $3.9(最坏)。要不要下调条数,由 Jerry 决定。

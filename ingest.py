@@ -45,7 +45,23 @@ PLACEHOLDER_LAB_IDS = {
 SKIP_KEYS = {
     "id", "cover", "hero", "heroPoster", "preview", "media", "mediaType",
     "poster", "link", "url", "repo", "theme", "embedLive", "projectId", "src",
+    # `alt` is a picture's accessibility description: it says what the image
+    # looks like, not what the project did. Measured on the 2026-08-17 corpus,
+    # 56–70% of the distinct words in a project's alt text appear nowhere else
+    # in that chunk, and the unique part is appearance vocabulary — glowing,
+    # greyscale, mannequin, dashed, silhouettes. The load-bearing facts are all
+    # in the prose beside the pictures (Belt's L5 rationale is in `body`, the
+    # accuracy ladder is in the ladder rows), so dropping alt costs no content.
+    "alt",
 }
+
+# Layout instructions that only appear *inside a `detail` block*, never as prose.
+# `type` has to be context-sensitive rather than global: on a lab entry it reads
+# 'Generative · 2026' and on `credits` it names the disciplines — both real
+# content — but on a detail block it is the renderer's block kind (hero / media /
+# text / list / grid), which alone contributed 29 "Category: media" lines to one
+# chunk. `variant` is the same kind of thing (paired / decisions / circles).
+DETAIL_LAYOUT_KEYS = frozenset({"type", "variant"})
 
 # Field label prettification for the chunk text handed to the embedder / LLM.
 LABELS = {
@@ -81,8 +97,13 @@ def _label(key: str) -> str:
     return LABELS.get(key, key[:1].upper() + key[1:])
 
 
-def _flatten(value: Any, prefix: str, out: list[str]) -> None:
-    """Append `Label: text` lines for every human-readable string in `value`."""
+def _flatten(value: Any, prefix: str, out: list[str],
+             skip_extra: frozenset = frozenset()) -> None:
+    """Append `Label: text` lines for every human-readable string in `value`.
+
+    `skip_extra` carries the context-sensitive skips (see DETAIL_LAYOUT_KEYS)
+    down the whole subtree, since detail blocks nest items inside items.
+    """
     if isinstance(value, str):
         text = value.strip()
         if text:
@@ -95,13 +116,13 @@ def _flatten(value: Any, prefix: str, out: list[str]) -> None:
             out.append(f"{prefix}: {', '.join(strings)}")
         else:
             for item in value:
-                _flatten(item, prefix, out)
+                _flatten(item, prefix, out, skip_extra)
     elif isinstance(value, dict):
         for k, v in value.items():
-            if k in SKIP_KEYS:
+            if k in SKIP_KEYS or k in skip_extra:
                 continue
             child = f"{prefix} — {_label(k)}" if prefix else _label(k)
-            _flatten(v, child, out)
+            _flatten(v, child, out, skip_extra)
 
 
 def build_chunk_text(entry: dict, kind: str) -> str:
@@ -109,7 +130,8 @@ def build_chunk_text(entry: dict, kind: str) -> str:
     for key, value in entry.items():
         if key in SKIP_KEYS:
             continue
-        _flatten(value, _label(key), lines)
+        skip_extra = DETAIL_LAYOUT_KEYS if key == "detail" else frozenset()
+        _flatten(value, _label(key), lines, skip_extra)
     header = {"project": "Project", "work": "Experience", "lab": "Lab experiment"}[kind]
     return f"{header}\n" + "\n".join(lines)
 

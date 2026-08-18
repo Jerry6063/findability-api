@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-09T22:18:29Z",
+  "generated_at": "2026-08-18T02:13:33Z",
   "embed_model": "gemini-embedding-2",
   "edge_threshold": 0.7,
   "nodes": [
@@ -203,19 +203,19 @@
       "w": 0.89
     },
     {
-      "s": "belt-for-the-blind",
-      "t": "haptic-atlas",
-      "w": 0.8835
-    },
-    {
       "s": "haptic-navigation-research",
       "t": "spatial-pixel-lab",
       "w": 0.8561
     },
     {
       "s": "belt-for-the-blind",
-      "t": "haptic-navigation-research",
-      "w": 0.8274
+      "t": "haptic-atlas",
+      "w": 0.8536
+    },
+    {
+      "s": "floralink",
+      "t": "heartwhisper",
+      "w": 0.8298
     },
     {
       "s": "social-rhythm",
@@ -228,24 +228,19 @@
       "w": 0.817
     },
     {
-      "s": "belt-for-the-blind",
-      "t": "heartwhisper",
-      "w": 0.8167
-    },
-    {
       "s": "haptic-navigation-research",
       "t": "thu-adri",
       "w": 0.8164
     },
     {
-      "s": "floralink",
-      "t": "heartwhisper",
-      "w": 0.7981
-    },
-    {
       "s": "spatial-pixel-lab",
       "t": "start-me-up",
       "w": 0.7981
+    },
+    {
+      "s": "belt-for-the-blind",
+      "t": "haptic-navigation-research",
+      "w": 0.7972
     },
     {
       "s": "hxvp",
@@ -258,19 +253,9 @@
       "w": 0.7858
     },
     {
-      "s": "belt-for-the-blind",
-      "t": "social-rhythm",
-      "w": 0.7856
-    },
-    {
       "s": "hxvp-marketing-group",
       "t": "start-me-up",
       "w": 0.7846
-    },
-    {
-      "s": "floralink",
-      "t": "social-rhythm",
-      "w": 0.7813
     },
     {
       "s": "haptic-atlas",
@@ -288,19 +273,14 @@
       "w": 0.7763
     },
     {
-      "s": "haptic-atlas",
-      "t": "heartwhisper",
-      "w": 0.7705
-    },
-    {
-      "s": "belt-for-the-blind",
-      "t": "floralink",
-      "w": 0.7591
-    },
-    {
       "s": "findability",
       "t": "ikon-atlas",
       "w": 0.7544
+    },
+    {
+      "s": "haptic-navigation-research",
+      "t": "social-rhythm",
+      "w": 0.7525
     },
     {
       "s": "findability",
@@ -308,9 +288,24 @@
       "w": 0.7396
     },
     {
+      "s": "belt-for-the-blind",
+      "t": "social-rhythm",
+      "w": 0.739
+    },
+    {
+      "s": "belt-for-the-blind",
+      "t": "heartwhisper",
+      "w": 0.7384
+    },
+    {
       "s": "haptic-atlas",
       "t": "ikon-atlas",
       "w": 0.7333
+    },
+    {
+      "s": "belt-for-the-blind",
+      "t": "floralink",
+      "w": 0.7297
     },
     {
       "s": "ascii-motion-jellyfish",
@@ -356,23 +351,23 @@
     ],
     "social-rhythm": [
       "spatial-pixel-lab",
-      "belt-for-the-blind",
-      "floralink"
+      "haptic-atlas",
+      "haptic-navigation-research"
     ],
     "floralink": [
       "heartwhisper",
-      "social-rhythm",
-      "belt-for-the-blind"
+      "belt-for-the-blind",
+      "haptic-atlas"
     ],
     "heartwhisper": [
-      "belt-for-the-blind",
       "floralink",
+      "belt-for-the-blind",
       "haptic-atlas"
     ],
     "belt-for-the-blind": [
       "haptic-atlas",
       "haptic-navigation-research",
-      "heartwhisper"
+      "social-rhythm"
     ],
     "hxvp-marketing-group": [
       "hxvp",
@@ -392,7 +387,7 @@
     "haptic-navigation-research": [
       "haptic-atlas",
       "spatial-pixel-lab",
-      "belt-for-the-blind"
+      "start-me-up"
     ],
     "thu-adri": [
       "haptic-navigation-research",
@@ -422,7 +417,7 @@
   },
   "report": {
     "nodes": 15,
-    "edges": 30,
+    "edges": 29,
     "max_possible_edges": 105,
     "isolated": [],
     "components": [
@@ -448,10 +443,10 @@
       "ascii-motion-jellyfish": 3,
       "belt-for-the-blind": 5,
       "findability": 2,
-      "floralink": 3,
-      "haptic-atlas": 6,
-      "haptic-navigation-research": 6,
-      "heartwhisper": 3,
+      "floralink": 2,
+      "haptic-atlas": 5,
+      "haptic-navigation-research": 7,
+      "heartwhisper": 2,
       "hxvp": 3,
       "hxvp-marketing-group": 3,
       "ikon-atlas": 4,
@@ -463,9 +458,9 @@
     },
     "similarity_percentiles": {
       "max": 0.8982,
-      "p75": 0.7544,
-      "median": 0.6956,
-      "min": 0.6234
+      "p75": 0.726,
+      "median": 0.6782,
+      "min": 0.5504
     }
   }
 }
