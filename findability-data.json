@@ -26,7 +26,7 @@
         "Navigation",
         "Hardware"
       ],
-      "summary": "The design side of the Haptic Navigation Research program — navigation carried by vibration instead of a screen.",
+      "summary": "A research program on navigation carried by vibration instead of a screen: a fourteen-motor belt, a vocabulary of cues, and the city data…",
       "subtitle": "Project Lead",
       "year": "2024 — Present",
       "url": "https://xinyu-jiao.github.io/haptic-atlas/present/"
@@ -41,7 +41,7 @@
         "Mediapipe",
         "Computer Vision"
       ],
-      "summary": "Part I — Elephant’s Leg. A trilogy of three interactive installations exploring the relationship between human movement and space across…",
+      "summary": "A trilogy of interactive installations on how movement meets space at three scales: hand, body and crowd. Part I: Elephant’s Leg.",
       "subtitle": "Interaction + Computer Vision",
       "year": "2025",
       "url": ""
@@ -58,7 +58,7 @@
         "Plant Intelligence",
         "Sociology"
       ],
-      "summary": "A Social Game of Plant Interactions for Neighborly Engagement",
+      "summary": "A social game played through windowsill plants, for neighbours who pass each other every day and do not speak.",
       "subtitle": "Sociology + Game Mechanism",
       "year": "2024",
       "url": ""
@@ -69,17 +69,17 @@
       "type": "project",
       "tags": [
         "Product Design",
-        "Deep Learning",
+        "Language Model",
         "Hardware"
       ],
-      "summary": "A Deep Learning–Based Device for East Asian Family Emotional Communication",
-      "subtitle": "Hardware + Deep Learning",
+      "summary": "A pair of screenless devices for Chinese parents and their grown children: the words arrive on paper, the feeling under them as light.",
+      "subtitle": "Hardware + Language Model",
       "year": "2024",
       "url": ""
     },
     {
       "id": "belt-for-the-blind",
-      "title": "Belt for the Blind",
+      "title": "Guide Belt",
       "type": "project",
       "tags": [
         "Product Design",
@@ -87,7 +87,7 @@
         "Experimental Design",
         "Prototype Development"
       ],
-      "summary": "A Wearable Device Based on Tactile Perception and User Testing",
+      "summary": "A feasibility pilot for Haptic Atlas: one cue at the lumbar midline, and a walker who was told nothing.",
       "subtitle": "Tactile Perception + Prototype Dev",
       "year": "2024",
       "url": ""
